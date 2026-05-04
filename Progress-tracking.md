@@ -62,3 +62,26 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 ---
 
 ## Week 2
+🔧 Collector tools setup
+- Installed auditd, auditdctl, ausearch: 
+    ```sudo apt install auditd audispd-plugins
+    sudo systemctl enable auditd
+    sudo systemctl start auditd```
+- Enabled execution tracking, reboot persistent -> /etc/audit/rules.d:
+    ```## First rule - delete all
+    -D
+    ## Execution tracking
+    -a always,exit -F arch=b64 -S execve -k shell_cmds
+    ## Increase the buffers to survive stress events.
+    ## Make this bigger for busy systems
+    -b 8192
+
+    ## This determine how long to wait in burst of events
+    --backlog_wait_time 60000
+
+    ## Set failure mode to syslog
+    -f```
+- Bash history configuration -> /etc/bash.bashrc:
+    ```export PROMPT_COMMAND='history -a'
+    shopt -s histappend```
+    
