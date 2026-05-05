@@ -56,7 +56,7 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 
 ### Open Questions
 - How should a log collector behave in an enviroment that requires parallelization?
-- How should I integrate the shell history command output to the auditd logs?
+- How should I integrate the shell history command output to the auditd logs? (Week 2: optional)
 - How should I parse multiple line commands in autitd logs?
 
 ---
@@ -66,7 +66,7 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - Installed auditd, auditdctl, ausearch: 
     ```sudo apt install auditd audispd-plugins
     sudo systemctl enable auditd
-    sudo systemctl start auditd```
+    sudo systemctl start auditd
 - Enabled execution tracking, reboot persistent -> /etc/audit/rules.d:
     ```## First rule - delete all
     -D
@@ -80,8 +80,43 @@ This document tracks weekly progress, decisions, and technical evolution of the 
     --backlog_wait_time 60000
 
     ## Set failure mode to syslog
-    -f```
+    -f
 - Bash history configuration -> /etc/bash.bashrc:
     ```export PROMPT_COMMAND='history -a'
-    shopt -s histappend```
-    
+    shopt -s histappend
+
+🔧 Telegraf and MQTT broker setup
+- Installed mosquitto: https://mosquitto.org/download/
+- Setup telegraf: 
+    ```docker pull telegraf
+    Create folder C:\telegraf and file telegraf.conf:
+    ```[agent]
+    interval = "5s"
+
+    [[inputs.mqtt_consumer]]
+    servers = ["tcp://host.docker.internal:1883"]
+
+    topics = ["host/#"]
+
+    qos = 1
+    data_format = "json"
+
+    [[outputs.file]]
+    files = ["stdout"]
+    ```docker run -d --name telegraf -v C:\telegraf\telegraf.conf:/etc/telegraf/telegraf.conf:ro telegraf
+
+⚙️ PoC
+- Creation of a python collector with multithreading: pipeline that collect events from 3 sources real-time, normalizes the raw data and routes the output to a specific topic, ready to be published
+- Logging system as a sdebug tool
+- MQTT python client setup
+
+🧾 Choosing the technologies
+- MQTT over Apache Kafka and HTTP REST
+- Python as programming language
+- TIG pipeline over ELK pipeline
+
+📖 MQTT, Apache Kafka, Telegraf
+- MQTT doc: https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html
+- mosquitto: https://mosquitto.org/documentation/
+- Apache Kafka use cases: https://kafka.apache.org/42/getting-started/uses/
+- Telegraf: https://docs.influxdata.com/telegraf/v1/

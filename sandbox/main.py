@@ -6,10 +6,10 @@ from collector.journalCollector import JournalctlCollector
 from collector.normalizer import Normalizer
 from collector.orchestrator import LogPipeline
 from collector.topicRouter import TopicRouter
-
+from pathlib import Path
 import glob
 
-paths = glob.glob("/home/*/.bash_history")
+paths = glob.glob("/home/*/.bash_history")#[Path.home() / "OneDrive - Eurosystem SPA/Desktop/stage/sandbox/collector/generated_log_2026-05-04T07_05_53.298Z.txt"]
 paths.append("/root/.bash_history")
 
 if __name__ == "__main__":
@@ -23,8 +23,9 @@ if __name__ == "__main__":
         JournalctlCollector(logger),
         AuditdCollector(logger)
     ]
+    
     pipeline = LogPipeline(
-        collectors=bash_collectors + system_collectors,
+        collectors=bash_collectors,# + system_collectors,
         normalizer=Normalizer(),
         router=TopicRouter(),
         publisher=MQTTPublisher(logger),

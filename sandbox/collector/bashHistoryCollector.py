@@ -6,8 +6,10 @@ from pathlib import Path
 class BashHistoryCollector(BaseCollector):
     def __init__(self, logger, path=None):
         super().__init__(logger)
-        #self.path = path or os.path.expanduser("~/.bash_history")
-        self.path = path or str(Path.home() / "OneDrive - Eurosystem SPA/Desktop/stage/sandbox/generated_log_2026-05-04T07_05_53.298Z.txt")
+        self.path = path or os.path.expanduser("~/.bash_history")
+        #base_dir = Path(os.getenv("BASE_DIR", "/app")).resolve()
+
+        #self.path = base_dir / "collector/generated_log_2026-05-04T07_05_53.298Z.txt"
 
     def collect(self):
         self.logger.debug(f"Tailing history file: {self.path}")
