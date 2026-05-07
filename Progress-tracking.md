@@ -75,6 +75,15 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 
 🧠 Researching about Docker routing feature
 - Studied a way to make my docker containers communicate between VMs
+- Looked for a way to manage firewalls and docker ports
+
+🧠 Researching for log patterns
+- Delved into auditd, journald logs
+- Searched for valid parameters to keep track of
+
+🧠 Studying Telegraf gjson path sintax to setup its json_v2 parser
+- Learned about gjson sintax
+- Looked for a way to tune the json into a good influxDB output
 
 🔧 Collector tools setup
 - Installed auditd, auditdctl, ausearch: 
@@ -164,6 +173,10 @@ This document tracks weekly progress, decisions, and technical evolution of the 
     files = ["stdout"]
     data_format = "influx"
 
+🔧 InfluxDB and Grafana setup
+- Created an account on both services
+- InfluxDB organization, bucket setup
+
 ⚙️ PoC
 - Creation of a python collector with multithreading: pipeline that collect events from 3 sources real-time, normalizes the raw data and routes the output to a specific topic, ready to be published
 - Logging system as a debug tool
@@ -173,6 +186,7 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - Organized a docker enviroment with 2 containers:
     1. collector
     2. mosquitto, telegraf, influxdb and grafana
+- EXPLAIN THE CLASSES/PURPOSE
 
 🧾 Choosing the technologies
 - MQTT over Apache Kafka and HTTP REST
@@ -186,4 +200,9 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - Apache Kafka use cases: https://kafka.apache.org/42/getting-started/uses/
 - Telegraf: https://docs.influxdata.com/telegraf/v1/
 - Docker networking: https://docs.docker.com/engine/network/
+- Docker port publishing: https://docs.docker.com/engine/network/port-publishing/
 - InfluxDB OSS v2: https://docs.influxdata.com/influxdb/v2/
+- InfluxDB errors: https://docs.influxdata.com/influxdb/v1/troubleshooting/errors/
+- InfluxDB input data format json_v2: https://docs.influxdata.com/telegraf/v1/data_formats/input/json_v2/, https://www.influxdata.com/blog/how-parse-json-telegraf-influxdb-cloud/
+- Auditd log structure: https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/security_guide/sec-understanding_audit_log_files, https://access.redhat.com/articles/4409591#audit-record-types-2, https://access.redhat.com/articles/4409591#audit-event-fields-1
+- InfluxDB gjson path syntax: https://github.com/tidwall/gjson/blob/v1.7.5/SYNTAX.md
