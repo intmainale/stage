@@ -1,2 +1,7 @@
 __pycache__
 *.conf
+.env
+ex_log.txt
+
+sandbox/
+mosquitto/

@@ -62,6 +62,20 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 ---
 
 ## Week 2
+🧠 Delving into MQTT protocol and alternatives
+- Learned about MQTT protocol and its use cases
+- Explored MQTT alternatives: Apache Kafka, HTTP REST
+
+🧠 Learning about TIG pipeline and alternatives
+- Learned about Telegraf use cases and integration with MQTT and InfluxDB
+- Studied how InfluxDB works in high throughput enviroments without losing performance
+- Researched about the integration between Grafana and InfluxDB
+- Learned about Grafana capabilites
+- Evaluated the ELK stack integration but it didn't meet the requirements for this project
+
+🧠 Researching about Docker routing feature
+- Studied a way to make my docker containers communicate between VMs
+
 🔧 Collector tools setup
 - Installed auditd, auditdctl, ausearch: 
     ```sudo apt install auditd audispd-plugins
@@ -87,7 +101,7 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 
 🔧 Telegraf and MQTT broker setup
 - Installed mosquitto: https://mosquitto.org/download/
-- Setup telegraf: 
+- Telegraf setup: 
     ```docker pull telegraf
     Create folder C:\telegraf and file telegraf.conf:
     ```[agent]
@@ -104,19 +118,72 @@ This document tracks weekly progress, decisions, and technical evolution of the 
     [[outputs.file]]
     files = ["stdout"]
     ```docker run -d --name telegraf -v C:\telegraf\telegraf.conf:/etc/telegraf/telegraf.conf:ro telegraf
+- Telegraf setup change:
+    ```[agent]
+    interval = "500ms"
+    flush_interval = "1s"
+
+    metric_batch_size = 5000
+    metric_buffer_limit = 50000
+
+    collection_jitter = "1s"
+    flush_jitter = "2s"
+
+    # =========================
+    # INPUT: MQTT consumer
+    # =========================
+    [[inputs.mqtt_consumer]]
+    servers = ["tcp://mosquitto:1883"]
+
+    topics = [
+        "host/#"
+    ]
+
+    qos = 1
+
+    connection_timeout = "30s"
+
+    data_format = "influx"
+
+    # =========================
+    # OUTPUT: InfluxDB v2
+    # =========================
+    [[outputs.influxdb_v2]]
+    urls = ["http://influxdb:8086"]
+
+    token = "${INFLUX_TOKEN}"
+    organization = "${INFLUX_ORG}"
+    bucket = "${INFLUX_BUCKET}"
+
+    timeout = "10s"
+
+    # =========================
+    # OUTPUT: File (for debugging)
+    # =========================
+    [[outputs.file]]
+    files = ["stdout"]
+    data_format = "influx"
 
 ⚙️ PoC
 - Creation of a python collector with multithreading: pipeline that collect events from 3 sources real-time, normalizes the raw data and routes the output to a specific topic, ready to be published
-- Logging system as a sdebug tool
+- Logging system as a debug tool
 - MQTT python client setup
+- Telegraf .conf file setup for InfluxDB and mosquitto services integration
+- Grafana integration with InfluxDB
+- Organized a docker enviroment with 2 containers:
+    1. collector
+    2. mosquitto, telegraf, influxdb and grafana
 
 🧾 Choosing the technologies
 - MQTT over Apache Kafka and HTTP REST
 - Python as programming language
 - TIG pipeline over ELK pipeline
+- Docker for deployment
 
-📖 MQTT, Apache Kafka, Telegraf
+📖 MQTT, Apache Kafka, Telegraf, Docker networking, InfluxDB OSS v2
 - MQTT doc: https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html
 - mosquitto: https://mosquitto.org/documentation/
 - Apache Kafka use cases: https://kafka.apache.org/42/getting-started/uses/
 - Telegraf: https://docs.influxdata.com/telegraf/v1/
+- Docker networking: https://docs.docker.com/engine/network/
+- InfluxDB OSS v2: https://docs.influxdata.com/influxdb/v2/
