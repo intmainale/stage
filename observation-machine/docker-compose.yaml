@@ -6,8 +6,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "1883:1883"
-      - "9001:9001"
+      - "10.10.0.2:1883:1883"
 
     volumes:
       - ./mosquitto/config:/mosquitto/config

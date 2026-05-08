@@ -25,8 +25,8 @@ class LogPipeline:
         while True:
             event = self.queue.get()
 
-            event = self.normalizer.normalize(event)
-            topic, payload = self.router.route(event)
+            topic, payload = self.normalizer.normalize(event)
+            #topic, payload = self.router.route(event)
 
             if topic:
                 self.logger.debug(f"PAYLOAD: {payload}, TYPE: {type(payload)}")

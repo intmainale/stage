@@ -112,7 +112,8 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - Installed mosquitto: https://mosquitto.org/download/
 - Telegraf setup: 
     ```docker pull telegraf
-    Create folder C:\telegraf and file telegraf.conf:
+
+-- Create folder C:\telegraf and file telegraf.conf:
     ```[agent]
     interval = "5s"
 
@@ -126,6 +127,7 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 
     [[outputs.file]]
     files = ["stdout"]
+
     ```docker run -d --name telegraf -v C:\telegraf\telegraf.conf:/etc/telegraf/telegraf.conf:ro telegraf
 - Telegraf setup change:
     ```[agent]
@@ -186,7 +188,15 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - Organized a docker enviroment with 2 containers:
     1. collector
     2. mosquitto, telegraf, influxdb and grafana
-- EXPLAIN THE CLASSES/PURPOSE
+- Collector structure: 
+-- **baseCollector** abstract class that defines the basic methods of the collector classes
+-- **auditdCollector**, **bashHistoryCollector**, **journalCollector** are the implementation of the previous class, which identify the services
+-- **logger** is an utility class used for production debug purposes
+-- **normalizer** is a parser that make the input ready to be published via MQTT
+-- **topicRouter** sorts the parsed logs per MQTT topic
+-- **MQTTPublisher** manages the connection to the MQTT broker and the data publishing in the right topic
+-- **threadCollector** is a class that implements multithreading: 1 thread per event
+-- **orchestrator** creates the collector pipeline, from the logs collection to their publishing
 
 🧾 Choosing the technologies
 - MQTT over Apache Kafka and HTTP REST
@@ -203,6 +213,8 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - Docker port publishing: https://docs.docker.com/engine/network/port-publishing/
 - InfluxDB OSS v2: https://docs.influxdata.com/influxdb/v2/
 - InfluxDB errors: https://docs.influxdata.com/influxdb/v1/troubleshooting/errors/
-- InfluxDB input data format json_v2: https://docs.influxdata.com/telegraf/v1/data_formats/input/json_v2/, https://www.influxdata.com/blog/how-parse-json-telegraf-influxdb-cloud/
+- Telegraf? input data format json_v2: https://docs.influxdata.com/telegraf/v1/data_formats/input/json_v2/, https://www.influxdata.com/blog/how-parse-json-telegraf-influxdb-cloud/, https://www.influxdata.com/blog/mqtt-topic-payload-parsing-telegraf/
 - Auditd log structure: https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/security_guide/sec-understanding_audit_log_files, https://access.redhat.com/articles/4409591#audit-record-types-2, https://access.redhat.com/articles/4409591#audit-event-fields-1
 - InfluxDB gjson path syntax: https://github.com/tidwall/gjson/blob/v1.7.5/SYNTAX.md
+- Agent, tagdrop, input plugin configuration telegraf: https://docs.influxdata.com/telegraf/v1/configuration/#create-a-configuration-with-default-input-and-output-plugins
+- Store secrets telegraf: https://docs.influxdata.com/telegraf/v1/configuration/#secret-store-secrets
