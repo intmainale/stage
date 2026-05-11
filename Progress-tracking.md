@@ -113,7 +113,7 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - Telegraf setup: 
     ```docker pull telegraf
 
--- Create folder C:\telegraf and file telegraf.conf:
+- Create folder C:\telegraf and file telegraf.conf:
     ```[agent]
     interval = "5s"
 
@@ -189,14 +189,14 @@ This document tracks weekly progress, decisions, and technical evolution of the 
     1. collector
     2. mosquitto, telegraf, influxdb and grafana
 - Collector structure: 
--- **baseCollector** abstract class that defines the basic methods of the collector classes
--- **auditdCollector**, **bashHistoryCollector**, **journalCollector** are the implementation of the previous class, which identify the services
--- **logger** is an utility class used for production debug purposes
--- **normalizer** is a parser that make the input ready to be published via MQTT
--- **topicRouter** sorts the parsed logs per MQTT topic
--- **MQTTPublisher** manages the connection to the MQTT broker and the data publishing in the right topic
--- **threadCollector** is a class that implements multithreading: 1 thread per event
--- **orchestrator** creates the collector pipeline, from the logs collection to their publishing
+    - **baseCollector** abstract class that defines the basic methods of the collector classes
+    - **auditdCollector**, **bashHistoryCollector**, **journalCollector** are the implementation of the previous class, which identify the services
+    - **logger** is an utility class used for production debug purposes
+    - **normalizer** is a parser that make the input ready to be published via MQTT
+    - **topicRouter** sorts the parsed logs per MQTT topic
+    - **MQTTPublisher** manages the connection to the MQTT broker and the data publishing in the right topic
+    - **threadCollector** is a class that implements multithreading: 1 thread per event
+    - **orchestrator** creates the collector pipeline, from the logs collection to their publishing
 
 🧾 Choosing the technologies
 - MQTT over Apache Kafka and HTTP REST

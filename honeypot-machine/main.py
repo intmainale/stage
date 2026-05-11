@@ -10,7 +10,7 @@ from pathlib import Path
 import glob
 
 paths = glob.glob("/home/*/.bash_history") #[Path.home() / "OneDrive - Eurosystem SPA/Desktop/stage/honeypot-machine/collector/generated_log_2026-05-04T07_05_53.298Z.txt"] glob.glob("/home/*/.bash_history")
-paths.append("/root/.bash_history")
+#paths.append("/root/.bash_history")
 
 if __name__ == "__main__":
     logger = Log()
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     ]
     
     pipeline = LogPipeline(
-        collectors=bash_collectors + system_collectors, #[BashHistoryCollector(logger)],
+        collectors=bash_collectors,#+ system_collectors,
         normalizer=Normalizer(logger),
         router=TopicRouter(),
         publisher=MQTTPublisher(logger),
