@@ -20,7 +20,7 @@ if __name__ == "__main__":
     ]
     for p in paths:
         logger.debug(f"Added BashHistoryCollector for path: {p}")
-        
+    logger.debug(f"Test")
     system_collectors = [
         JournalctlCollector(logger),
         AuditdCollector(logger)
