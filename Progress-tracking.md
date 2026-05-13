@@ -55,7 +55,7 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 📖 
 
 ### Open Questions
-- How should a log collector behave in an enviroment that requires parallelization?
+- How should a log collector behave in an enviroment that requires parallelization? 
 - How should I integrate the shell history command output to the auditd logs? (Week 2: optional)
 - How should I parse multiple line commands in autitd logs?
 
@@ -185,9 +185,6 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - MQTT python client setup
 - Telegraf .conf file setup for InfluxDB and mosquitto services integration
 - Grafana integration with InfluxDB
-- Organized a docker enviroment with 2 containers:
-    1. collector
-    2. mosquitto, telegraf, influxdb and grafana
 - Collector structure: 
     - **baseCollector** abstract class that defines the basic methods of the collector classes
     - **auditdCollector**, **bashHistoryCollector**, **journalCollector** are the implementation of the previous class, which identify the services
@@ -197,6 +194,11 @@ This document tracks weekly progress, decisions, and technical evolution of the 
     - **MQTTPublisher** manages the connection to the MQTT broker and the data publishing in the right topic
     - **threadCollector** is a class that implements multithreading: 1 thread per event
     - **orchestrator** creates the collector pipeline, from the logs collection to their publishing
+
+📦 Docker deployment structure
+- Organized a docker enviroment with 2 containers:
+    1. collector
+    2. mosquitto, telegraf, influxdb and grafana
 
 🧾 Choosing the technologies
 - MQTT over Apache Kafka and HTTP REST
@@ -218,3 +220,24 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - InfluxDB gjson path syntax: https://github.com/tidwall/gjson/blob/v1.7.5/SYNTAX.md
 - Agent, tagdrop, input plugin configuration telegraf: https://docs.influxdata.com/telegraf/v1/configuration/#create-a-configuration-with-default-input-and-output-plugins
 - Store secrets telegraf: https://docs.influxdata.com/telegraf/v1/configuration/#secret-store-secrets
+- https://thesis.unipd.it/retrieve/f785ad51-b48e-4241-8235-af6fc8db01d4/Tesi_Marko_Peric.pdf
+
+## Week 3
+
+🧠 Class diagram
+- Designing classes following SOLID principles: responsabilities, dependencies, attributes, types and methods
+- Choosing multiple design patterns: facade, abstract factory, strategy, builder, singleton
+
+🧠 Architecture design
+- Choosing the architectural design: "ports and adapters" for the honeypot-machine + "event-driven" for communication between modules with MQTT
+
+🧾 Choosing the class and architectural design
+- Draft of architecture types and the system main components
+- Design of class diagram
+- Design of the hexagonal architecture system with ports and adpters
+
+📖 Design patterns, architectural patterns
+- Dependency Injection: https://devopedia.org/dependency-injection
+- Design patterns: https://refactoring.guru/design-patterns
+- Hexagonal architecture: https://docs.aws.amazon.com/it_it/prescriptive-guidance/latest/cloud-design-patterns/hexagonal-architecture.html
+- Microservices architecture: https://www.designgurus.io/blog/19-essential-microservices-patterns-for-system-design-interviews?gad_source=1&gad_campaignid=23163907085&gclid=CjwKCAjwwpDQBhAuEiwAa-4Wo7G0n8EB_UHTrYR6biswjT5WWXr30-PZPUDTvF6TExNSI8ozzyMpwxoCERIQAvD_BwE
