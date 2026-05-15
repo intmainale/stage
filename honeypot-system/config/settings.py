@@ -4,6 +4,7 @@ Singleton config reader.  Loads a YAML file (config/settings.yaml) if PyYAML
 is available, otherwise falls back to environment variables with dotted-key
 conventions (e.g. MQTT_HOST for mqtt.host).
 """
+from __future__ import annotations
 
 import os
 import threading
@@ -20,7 +21,7 @@ except ImportError:
 class Settings:
     """Singleton settings store."""
 
-    _instance: Optional["Settings"] = None
+    _instance: Optional[Settings] = None
     _lock = threading.Lock()
 
     def __init__(self, config_path: str = "config/settings.yaml") -> None:
