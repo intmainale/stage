@@ -50,9 +50,11 @@ class VirusTotalInfo:
 
 @dataclass
 class ShodanInfo:
-    organization: str | None = None
+    asn: str | None = None
     os: str | None = None
-
+    latitude: float | None = None
+    longitude: float | None = None
+    
     open_ports: list[int] = field(default_factory=list)
 
     tags: list[str] = field(default_factory=list)
@@ -60,7 +62,7 @@ class ShodanInfo:
 
 @dataclass
 class AbuseIPDBInfo:
-    score: int | None = None
+    abuse_confidence_score: int | None = None
 
     country: str | None = None
     isp: str | None = None
@@ -134,7 +136,7 @@ class Event:
 
     event_id: str = field(default_factory=lambda: str(uuid4()))
 
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=datetime.timezone.utc.now)
 
     # -----------------------------------------------------
     # LOW CARDINALITY TAGS (GOOD FOR INFLUX TAGS)
