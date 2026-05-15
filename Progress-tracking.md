@@ -231,6 +231,13 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 🧠 Architecture design
 - Choosing the architectural design: "ports and adapters" for the honeypot-machine + "event-driven" for communication between modules with MQTT
 
+⚙️ Coding domain and ports/adapters: collectors, enrichers, parsers, publishers
+- Modular approach to improve maintainability
+- Interfaces to design a class contract and responsabilities and to apply design patterns
+- Based on domain model Event structure
+- Institutioned a hierarchy of exceptions to improve readability
+- Logger to simplify debugging as a singleton class
+
 🧾 Choosing the class and architectural design
 - Draft of architecture types and the system main components
 - Design of class diagram
@@ -241,3 +248,21 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - Design patterns: https://refactoring.guru/design-patterns
 - Hexagonal architecture: https://docs.aws.amazon.com/it_it/prescriptive-guidance/latest/cloud-design-patterns/hexagonal-architecture.html
 - Microservices architecture: https://www.designgurus.io/blog/19-essential-microservices-patterns-for-system-design-interviews?gad_source=1&gad_campaignid=23163907085&gclid=CjwKCAjwwpDQBhAuEiwAa-4Wo7G0n8EB_UHTrYR6biswjT5WWXr30-PZPUDTvF6TExNSI8ozzyMpwxoCERIQAvD_BwE
+
+📖 Bash logging
+- https://github.com/cyberbutler/bash-logging-elk
+
+📖 OSINT APIs
+- AbuseIPDB check endpoint and confidence of abuse metric: https://docs.abuseipdb.com/#check-endpoint, https://www.abuseipdb.com/faq.html#confidence
+- VirusTotal: https://docs.virustotal.com/reference/ip-object, https://docs.virustotal.com/reference/objects
+- Shodan api: developer.shodan.io/api
+
+📖 Python
+- re module: https://docs.python.org/3/library/re.html
+- typing module: https://docs.python.org/3/library/typing.html
+- datetime module: https://docs.python.org/3/library/datetime.html
+- __future__ module: https://docs.python.org/3/library/__future__.html
+- abc module: https://docs.python.org/3/library/abc.html
+- dataclasses module: https://docs.python.org/3/library/dataclasses.html,
+- Exceptions: https://docs.python.org/3/tutorial/errors.html
+- Decorators: https://peps.python.org/pep-0318/
