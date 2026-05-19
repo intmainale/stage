@@ -55,6 +55,13 @@ class EnrichmentBundle:
     shodan: ShodanInfo | None = None
     abuseipdb: AbuseIPDBInfo | None = None
 
+    def to_dict(self):
+        return {
+            "geolocation": self.geolocation.__dict__ if self.geolocation else None,
+            "virustotal": self.virustotal.__dict__ if self.virustotal else None,
+            "shodan": self.shodan.__dict__ if self.shodan else None,
+            "abuseipdb": self.abuseipdb.__dict__ if self.abuseipdb else None,
+        }
 
 # ── Main Events ─────────────────────────────────────────────────────────────────────
 
@@ -82,14 +89,32 @@ class AuditdExecEvent:
 
     raw: str | None = None
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "timestamp": self.timestamp,
+            "event_id": self.event_id,
+            "pid": self.pid,
+            "ppid": self.ppid,
+            "uid": self.uid,
+            "exe": self.exe,
+            "comm": self.comm,
+            "success": self.success,
+            "syscall": self.syscall,
+            "raw": self.raw,
+        }
+
 @dataclass
 class BashEvent:
-    timestamp: datetime
-    username: str | None = None
-    uid: int | None = None
-    groups: list[str] = field(default_factory=list)
-    pid: int | None = None
-    ppid: int | None = None
+    cmd: str | None = None
+    action: str | None = None
+    severity_score: int | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "command_line": self.command_line,
+            "action": self.action,
+            "severity_score": self.severity_score,
+        }
 
 @dataclass
 class ApacheEvent(EnrichableEvent):
@@ -101,3 +126,15 @@ class ApacheEvent(EnrichableEvent):
     status: int | None = None
     size: int | None = None
     enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "timestamp": self.timestamp.isoformat(),
+            "ip": self.ip,
+            "user": self.user,
+            "method": self.method,
+            "path": self.path,
+            "status": self.status,
+            "size": self.size,
+            "enrichments": self.enrichments.to_dict() if self.enrichments else None,
+        }
