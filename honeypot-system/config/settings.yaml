@@ -10,6 +10,9 @@ mqtt:
   port:  1883
   topic: "eurosystem/logs"
 
+debug:
+  output_path: "/var/log/honeypot_system/debug.log"
+
 # ── Log collectors ────────────────────────────────────────────────────────────
 collectors:
   bash:
