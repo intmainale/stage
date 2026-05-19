@@ -70,7 +70,7 @@ FILE_UPLOAD_PATTERNS = [
     ".war",
 ]
 
-class ApacheParser(LogParser):
+class ApacheParserAdapter(LogParser):
     """Parses Apache / Nginx combined-log-format access log lines."""
 
     def parse(self, raw_line: str) -> Optional[ApacheEvent]:

@@ -14,7 +14,7 @@ AUDIT_MSG_RE = re.compile(
 
 KEY_VALUE_RE = re.compile(r'(\w+)=(".*?"|\S+)')
 
-class AuditdExecParserAdapter(LogParser):
+class AuditdParserAdapter(LogParser):
     """
     Parses ONLY auditd execve/syscall events.
     """
@@ -28,7 +28,7 @@ class AuditdExecParserAdapter(LogParser):
         """
 
         if not raw_line.strip():
-            raise ParseError("AuditdExecParserAdapter: empty line")
+            raise ParseError("AuditdParserAdapter: empty line")
         
         # --- base fields ---
         ts = None
