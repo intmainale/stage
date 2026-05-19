@@ -1,6 +1,7 @@
 """Adapter: AuditdLogCollector — streams lines from /var/log/audit/audit.log."""
 
 from pathlib import Path
+import time
 from typing import Iterator
 
 from src.ports.outbound.log_collector_port import LogCollector
@@ -28,9 +29,19 @@ class AuditdLogCollectorAdapter(LogCollector):
             return
 
         try:
-            with self._path.open("r", encoding="utf-8", errors="replace") as fh:
-                for line in fh:
-                    yield line
+            yield from self._tail_file(self._path)
                     
         except OSError as exc:
             raise CollectionError(f"AuditdLogCollectorAdapter: read error: {exc}") from exc
+    
+    def _tail_file(self, path: Path) -> Iterator[str]:
+        """Tails a file and yields new lines as they are written."""
+        with path.open("r", encoding="utf-8", errors="replace") as fh:
+            fh.seek(0, 2)  # Move to end of file
+
+            while True:
+                line = fh.readline()
+                if line:
+                    yield line.strip()
+                else:
+                    time.sleep(0.1)
