@@ -38,7 +38,7 @@ enrichers:
 
 # ── Pipeline composition ──────────────────────────────────────────────────────
 pipeline:
-  services:    ["bash", "apache", "ftp", "cowrie", "custom_service"]
-  collectors:  ["bash", "apache", "ftp", "auditd", "journald"]
+  services:    ["bash", "apache", "auditd"]
+  collectors:  ["bash", "apache", "auditd"]
   publishers:  ["mqtt"]
   enrichers:   ["virustotal", "abuseipdb", "shodan"]

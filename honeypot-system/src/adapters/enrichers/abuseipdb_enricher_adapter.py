@@ -1,7 +1,7 @@
 """
 Adapter: AbuseIPDBEnricherAdapter
 Queries the AbuseIPDB v2 API for IP abuse reports and attaches results
-to LogEntry.enrichments["abuseipdb"].
+to EnrichableEvent.enrichments["abuseipdb"].
 """
 
 import json
@@ -10,7 +10,7 @@ import urllib.parse
 import urllib.request
 
 from src.ports.outbound.log_enricher_port import LogEnricher
-from src.domain.models.event import Event
+from src.domain.models.event import EnrichableEvent
 from src.domain.exceptions.domain_exceptions import EnrichmentError
 from config.settings import Settings
 
@@ -32,7 +32,7 @@ class AbuseIPDBEnricherAdapter(LogEnricher):
         if not self._api_key:
             self._L.warning("AbuseIPDBEnricherAdapter: no API key configured — will skip enrichment")
 
-    def enrich(self, entry: Event) -> Event:
+    def enrich(self, entry: EnrichableEvent) -> EnrichableEvent:
         if not self._api_key or not entry.ip:
             return entry
 
@@ -55,18 +55,18 @@ class AbuseIPDBEnricherAdapter(LogEnricher):
                 body = json.loads(resp.read())
                 data = body.get("data", {})
                 result = {
-                    "abuse_confidence_score": data.get("abuseConfidenceScore", 0),
-                    "total_reports":        data.get("totalReports", 0),
-                    "country":              data.get("countryName", ""),
-                    "isp":                  data.get("isp", ""),
-                    "usage_type":           data.get("usageType", ""),
+                    "abuse_confidence_score":   data.get("abuseConfidenceScore", 0),
+                    "total_reports":            data.get("totalReports", 0),
+                    "country":                  data.get("countryName", ""),
+                    "isp":                      data.get("isp", ""),
+                    "usage_type":               data.get("usageType", ""),
                 }
                 _CACHE[entry.ip] = {"data": result, "_ts": time.time()}
                 #entry.enrich("abuseipdb", result)
                 for key, value in result.items():
                     setattr(entry.enrichments.abuseipdb, key, value)
 
-                self._L.debug("AbuseIPDBEnricherAdapter: enriched %s → score=%s", entry.ip, result["abuse_confidence_score"])
+                self._L.debug("AbuseIPDBEnricherAdapter: enriched %s", entry.ip)
 
         except Exception as exc:  # noqa: BLE001
             raise EnrichmentError(f"AbuseIPDBEnricherAdapter: API error for {entry.ip}: {exc}") from exc

@@ -1,7 +1,7 @@
 """
 Adapter: VirusTotalEnricherAdapter
 Queries the VirusTotal v3 API for IP reputation data and attaches the result
-to the Event's enrichments dict under the key "virustotal".
+to EnrichableEvent.enrichments["virustotal"].
 """
 
 import time
@@ -9,7 +9,7 @@ import urllib.request
 import json
 
 from src.ports.outbound.log_enricher_port import LogEnricher
-from src.domain.models.event import Event
+from src.domain.models.event import EnrichableEvent
 from src.domain.exceptions.domain_exceptions import EnrichmentError
 from config.settings import Settings
 
@@ -31,7 +31,7 @@ class VirusTotalEnricherAdapter(LogEnricher):
         if not self._api_key:
             self._L.warning("VirusTotalEnricherAdapter: no API key configured — will skip enrichment")
 
-    def enrich(self, entry: Event) -> Event:
+    def enrich(self, entry: EnrichableEvent) -> EnrichableEvent:
         if not self._api_key or not entry.ip:
             return entry
 
@@ -66,7 +66,7 @@ class VirusTotalEnricherAdapter(LogEnricher):
                 #entry.enrich("virustotal", result)
                 for key, value in result.items():
                     setattr(entry.enrichments.virustotal, key, value)
-                self._L.debug("VirusTotalEnricherAdapter: enriched %s → %s", entry.ip, result)
+                self._L.debug("VirusTotalEnricherAdapter: enriched %s", entry.ip)
 
         except Exception as exc:  # noqa: BLE001
             raise EnrichmentError(f"VirusTotalEnricherAdapter: API error for {entry.ip}: {exc}") from exc

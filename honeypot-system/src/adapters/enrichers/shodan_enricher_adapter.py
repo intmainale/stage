@@ -1,7 +1,7 @@
 """
 Adapter: ShodanEnricherAdapter
 Queries the Shodan API for host information and attaches open ports / tags
-to Event.enrichments["shodan"].
+to EnrichableEvent.enrichments["shodan"].
 """
 
 import json
@@ -9,7 +9,7 @@ import time
 import urllib.request
 
 from src.ports.outbound.log_enricher_port import LogEnricher
-from src.domain.models.event import Event
+from src.domain.models.event import EnrichableEvent
 from src.domain.exceptions.domain_exceptions import EnrichmentError
 from config.settings import Settings
 
@@ -31,7 +31,7 @@ class ShodanEnricherAdapter(LogEnricher):
         if not self._api_key:
             self._L.warning("ShodanEnricherAdapter: no API key configured — will skip enrichment")
 
-    def enrich(self, entry: Event) -> Event:
+    def enrich(self, entry: EnrichableEvent) -> EnrichableEvent:
         if not self._api_key or not entry.ip:
             return entry
 
@@ -59,10 +59,7 @@ class ShodanEnricherAdapter(LogEnricher):
                 #entry.enrich("shodan", result)
                 for key, value in result.items():
                     setattr(entry.enrichments.shodan, key, value)
-                self._L.debug(
-                    "ShodanEnricherAdapter: enriched %s — ports=%s tags=%s",
-                    entry.ip, result["ports"], result["tags"],
-                )
+                self._L.debug("ShodanEnricherAdapter: enriched %s", entry.ip)
 
         except Exception as exc:  # noqa: BLE001
             raise EnrichmentError(f"ShodanEnricherAdapter: API error for {entry.ip}: {exc}") from exc

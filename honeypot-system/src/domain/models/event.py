@@ -59,6 +59,12 @@ class EnrichmentBundle:
 # ── Main Events ─────────────────────────────────────────────────────────────────────
 
 @dataclass
+class EnrichableEvent:
+    timestamp: datetime
+    ip: str | None = None
+    enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
+
+@dataclass
 class AuditdExecEvent:
     timestamp: float | None = None
     event_id: int | None = None
@@ -86,7 +92,7 @@ class BashEvent:
     ppid: int | None = None
 
 @dataclass
-class ApacheEvent:
+class ApacheEvent(EnrichableEvent):
     timestamp: datetime
     ip: str | None = None
     user: str | None = None
@@ -94,4 +100,4 @@ class ApacheEvent:
     path: str | None = None
     status: int | None = None
     size: int | None = None
-    enrichment: EnrichmentBundle | None = None
+    enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
