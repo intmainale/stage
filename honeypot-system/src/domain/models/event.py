@@ -73,6 +73,7 @@ class EnrichableEvent:
 
 @dataclass
 class AuditdExecEvent:
+    source: str = "auditd"
     timestamp: float | None = None
     event_id: int | None = None
 
@@ -105,6 +106,7 @@ class AuditdExecEvent:
 
 @dataclass
 class BashEvent:
+    source: str = "bash"
     cmd: str | None = None
     action: str | None = None
     severity_score: int | None = None
@@ -119,6 +121,7 @@ class BashEvent:
 @dataclass
 class ApacheEvent(EnrichableEvent):
     timestamp: datetime
+    source: str = "apache"
     ip: str | None = None
     user: str | None = None
     method: str | None = None

@@ -9,13 +9,14 @@ from src.domain.models.event import BashEvent
 from src.domain.exceptions.domain_exceptions import ParseError
 
 _PATTERN = re.compile(
-    r"(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"
+    """r"(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"
     r"\s+path=(?P<path>\S+)"
     r"\s+user=(?P<user>\S+)"
     r"\s+uid=(?P<uid>\d+)"
     r"\s+groups=(?P<groups>\S+)"
     r"\s+pid=(?P<pid>\d+)"
     r"\s+ppid=(?P<ppid>\d+)"
+    """
     r'\s+cmd="(?P<cmd>[^"]+)"'
 )
 
@@ -53,20 +54,14 @@ class BashParserAdapter(LogParser):
         if not match:
             raise ParseError(f"BashParserAdapter: line does not match expected format: {raw_line}")
 
-        ts_str = match.group("ts")
-        timestamp = datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+        #ts_str = match.group("ts")
+        #timestamp = datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
 
         action = self._classify_event(match.group("cmd"))
         severity_score = self._classify_severity(action)
 
         event = BashEvent(
-            timestamp=timestamp,
-            username = match.group("user"),
-            uid = int(match.group("uid")),
-            groups = match.group("groups").split(",") if match.group("groups") else [],
-            pid = int(match.group("pid")),
-            ppid = int(match.group("ppid")),
-            path = match.group("path"),
+            source="bash",
             command_line = match.group("cmd"),
             action = action,
             severity_score = severity_score,

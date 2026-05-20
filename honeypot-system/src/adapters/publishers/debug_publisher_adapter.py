@@ -54,10 +54,7 @@ class DebugFilePublisherAdapter(Publisher):
             self._file.flush()  # ensure real-time visibility
 
             self._L.debug(
-                "DebugFilePublisher: wrote event source=%s host=%s",
-                entry.source,
-                entry.host,
-            )
+                "DebugFilePublisher: wrote event source=%s", entry.source)
 
         except Exception as exc:
             raise PublishError(f"DebugFilePublisher write failed: {exc}") from exc

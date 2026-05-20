@@ -26,6 +26,7 @@ from src.adapters.parsers.auditd_parser_adapter import AuditdParserAdapter
 
 # ── publisher adapters ───────────────────────────────────────────────────────
 from src.adapters.publishers.mqtt_publisher_adapter import MQTTPublisherAdapter
+from src.adapters.publishers.debug_publisher_adapter import DebugFilePublisherAdapter
 
 # ── collector adapters ───────────────────────────────────────────────────────
 from src.adapters.collectors.bash_log_collector_adapter import BashLogCollectorAdapter
@@ -62,6 +63,7 @@ class ConcreteLogParserFactory(LogParserFactory):
 class ConcretePublisherFactory(PublisherFactory):
     _REGISTRY: dict[str, type[Publisher]] = {
         "mqtt": MQTTPublisherAdapter,
+        "debug": DebugFilePublisherAdapter,
     }
 
     def create_publisher(self, publisher_type: str) -> Publisher:

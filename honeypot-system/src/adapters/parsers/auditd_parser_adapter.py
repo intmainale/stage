@@ -51,6 +51,7 @@ class AuditdParserAdapter(LogParser):
 
         event = AuditdExecEvent(
             timestamp=ts,
+            source="auditd",
             event_id=event_id,
 
             pid=int(fields["pid"]) if "pid" in fields else None,

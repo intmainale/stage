@@ -51,42 +51,37 @@ class CollectorThread(threading.Thread):
                 if isinstance(self._collector, ApacheLogCollectorAdapter):
                     try:
                         event = self._pipeline.parsers["apache"].parse(raw_line)
-                        if event is not None:
-                            break
                     except ParseError as exc:
                         self._L.error("Parse error [%s]: %s", "apache", exc)
                     
-                    for enricher in self._pipeline.enrichers:
-                        try:
-                            event = enricher.enrich(event)
-                        except EnrichmentError as exc:
-                            self._L.warning("Enrichment error [%s]: %s", type(enricher).__name__, exc)
+                    if event is not None:
+                        for enricher in self._pipeline.enrichers:
+                            try:
+                                event = enricher.enrich(event)
+                            except EnrichmentError as exc:
+                                self._L.warning("Enrichment error [%s]: %s", type(enricher).__name__, exc)
 
                 elif isinstance(self._collector, BashLogCollectorAdapter):
                     try:
                         event = self._pipeline.parsers["bash"].parse(raw_line)
-                        if event is not None:
-                            break
                     except ParseError as exc:
                         self._L.error("Parse error [%s]: %s", "bash", exc)
 
                 elif isinstance(self._collector, AuditdLogCollectorAdapter):
                     try:
                         event = self._pipeline.parsers["auditd"].parse(raw_line)
-                        if event is not None:
-                            break
                     except ParseError as exc:
                         self._L.error("Parse error [%s]: %s", "auditd", exc)
                 
                 else:
                     raise ParseError(f"No parser found for collector type: {type(self._collector).__name__}")
                 
-                
-                for publisher in self._pipeline.publishers:
-                    try:
-                        publisher.publish(event)
-                    except PublishError as exc:
-                        self._L.error("Publish error [%s]: %s", type(publisher).__name__, exc)
+                if event is not None:
+                    for publisher in self._pipeline.publishers:
+                        try:
+                            publisher.publish(event)
+                        except PublishError as exc:
+                            self._L.error("Publish error [%s]: %s", type(publisher).__name__, exc)
 
         except CollectionError as exc:
             self._L.error("CollectorThread [%s] fatal collection error: %s", collector_name, exc)

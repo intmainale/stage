@@ -77,7 +77,7 @@ class ApacheParserAdapter(LogParser):
         raw_line = raw_line.strip()
         if not raw_line:
             return None
-
+ 
         m = _PATTERN.match(raw_line)
         if not m:
             return None
@@ -89,6 +89,7 @@ class ApacheParserAdapter(LogParser):
 
         event = ApacheEvent(
             timestamp = ts,
+            source    = "apache",
             ip        = m.group("ip"),
             user      = m.group("user"),
             method    = m.group("method"),
