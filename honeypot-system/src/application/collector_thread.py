@@ -8,7 +8,7 @@ Now receives a Pipeline dataclass instead of a raw dict.
 import threading
 from typing import Optional
 
-from src.application.pipeline import Pipeline
+from src.domain.models.pipeline import Pipeline
 from src.domain.exceptions.domain_exceptions import (
     ParseError, CollectionError, PublishError, EnrichmentError,
 )

@@ -66,13 +66,17 @@ class EnrichmentBundle:
 # ── Main Events ─────────────────────────────────────────────────────────────────────
 
 @dataclass
-class EnrichableEvent:
+class Event:
+    pass
+
+@dataclass
+class EnrichableEvent(Event):
     timestamp: datetime
     ip: str | None = None
     enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
 
 @dataclass
-class AuditdExecEvent:
+class AuditdExecEvent(Event):
     source: str = "auditd"
     timestamp: float | None = None
     event_id: int | None = None
@@ -105,7 +109,7 @@ class AuditdExecEvent:
         }
 
 @dataclass
-class BashEvent:
+class BashEvent(Event):
     source: str = "bash"
     cmd: str | None = None
     action: str | None = None

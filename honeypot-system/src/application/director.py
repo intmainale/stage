@@ -6,7 +6,7 @@ zero changes here.
 """
 from __future__ import annotations
 
-from src.application.pipeline import Pipeline
+from src.domain.models.pipeline import Pipeline
 from src.factories.abstract_factories import (
     LogParserFactory,
     PublisherFactory,

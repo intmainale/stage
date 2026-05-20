@@ -4,14 +4,14 @@ No builder pattern, no named setters per adapter type — just typed lists and a
 Adding a new adapter type requires zero changes here.
 """
 
-from dataclasses import field
+from dataclasses import field, dataclass
 
 from src.ports.outbound.log_parser_port import LogParser
 from src.ports.outbound.publisher_port import Publisher
 from src.ports.outbound.log_collector_port import LogCollector
 from src.ports.outbound.log_enricher_port import LogEnricher
 
-
+@dataclass
 class Pipeline:
     parsers:    dict[str, LogParser] = field(default_factory=dict)
     collectors: list[LogCollector]   = field(default_factory=list)
