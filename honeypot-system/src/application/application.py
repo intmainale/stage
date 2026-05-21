@@ -6,7 +6,8 @@ depends on this class directly since there is only one driver.
 
 import threading
 
-from src.application.director import Director
+from src.application.pipeline import Pipeline
+from src.application.pipeline_builder import PipelineBuilder
 from src.factories.concrete_factories import (
     ConcreteLogParserFactory,
     ConcretePublisherFactory,
@@ -33,19 +34,20 @@ class Application:
         self._publishers      = publishers
         self._collectors      = collectors
         self._enrichment_tools = enrichment_tools
+        self._pipeline: Pipeline = None
         self._threads:  list[CollectorThread]  = []
         self._stop_event: threading.Event      = threading.Event()
 
     def build_pipeline(self) -> None:
         self._L.info("Application: building pipeline ...")
-        _director = Director(
+        pipeline_builder = PipelineBuilder(
             parser_factory    = ConcreteLogParserFactory(),
             publisher_factory = ConcretePublisherFactory(),
             collector_factory = ConcreteLogCollectorFactory(),
             enricher_factory  = ConcreteLogEnricherFactory(),
         )
 
-        self._pipeline = _director.build(
+        self._pipeline = pipeline_builder.build(
             services   = self._services,
             publishers = self._publishers,
             collectors = self._collectors,

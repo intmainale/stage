@@ -8,17 +8,17 @@ from src.ports.outbound.log_parser_port import LogParser
 from src.domain.models.event import BashEvent
 from src.domain.exceptions.domain_exceptions import ParseError
 
-_PATTERN = re.compile(
-    """r"(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"
+"""_PATTERN = re.compile(
+    r"(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"
     r"\s+path=(?P<path>\S+)"
     r"\s+user=(?P<user>\S+)"
     r"\s+uid=(?P<uid>\d+)"
     r"\s+groups=(?P<groups>\S+)"
     r"\s+pid=(?P<pid>\d+)"
     r"\s+ppid=(?P<ppid>\d+)"
-    """
+    
     r'\s+cmd="(?P<cmd>[^"]+)"'
-)
+)"""
 
 # Commands that map to "download" action
 _DOWNLOAD  = {"wget ", "curl ", "fetch ", "tftp "}
@@ -50,19 +50,19 @@ class BashParserAdapter(LogParser):
         if not raw_line.strip():
             raise ParseError("BashParserAdapter: empty line")
 
-        match = _PATTERN.search(raw_line)
+        """match = _PATTERN.search(raw_line)
         if not match:
-            raise ParseError(f"BashParserAdapter: line does not match expected format: {raw_line}")
+            raise ParseError(f"BashParserAdapter: line does not match expected format: {raw_line}")"""
 
         #ts_str = match.group("ts")
         #timestamp = datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
 
-        action = self._classify_event(match.group("cmd"))
-        severity_score = self._classify_severity(action)
+        action = self.classify_event(raw_line)
+        severity_score = self.classify_severity(action)
 
         event = BashEvent(
             source="bash",
-            command_line = match.group("cmd"),
+            cmd = raw_line,
             action = action,
             severity_score = severity_score,
         )
@@ -73,7 +73,7 @@ class BashParserAdapter(LogParser):
     # ── Classification helpers ────────────────────────────────────────────────
 
     @staticmethod
-    def _classify_event(cmd: str) -> str:
+    def classify_event(cmd: str) -> str:
         if any(x in cmd for x in _DOWNLOAD):
             return "download"
         if any(x in cmd for x in _SHELL):
@@ -89,7 +89,7 @@ class BashParserAdapter(LogParser):
         return "command"
 
     @staticmethod
-    def _classify_severity(action: str) -> int:
+    def classify_severity(action: str) -> int:
         """Returns a 1-4 severity score matching SCORE_TO_SEVERITY."""
         if action in {"download", "privilege_escalation", "persistence"}:
             return 4   # critical

@@ -29,12 +29,12 @@ class AuditdLogCollectorAdapter(LogCollector):
             return
 
         try:
-            yield from self._tail_file(self._path)
+            yield from self.tail_file(self._path)
                     
         except OSError as exc:
             raise CollectionError(f"AuditdLogCollectorAdapter: read error: {exc}") from exc
     
-    def _tail_file(self, path: Path) -> Iterator[str]:
+    def tail_file(self, path: Path) -> Iterator[str]:
         """Tails a file and yields new lines as they are written."""
         with path.open("r", encoding="utf-8", errors="replace") as fh:
             fh.seek(0, 2)  # Move to end of file

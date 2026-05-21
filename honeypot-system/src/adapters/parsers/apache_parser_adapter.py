@@ -101,23 +101,23 @@ class ApacheParserAdapter(LogParser):
         return event
 
     @staticmethod
-    def classify_event(path: str) -> str:
-        path = path.lower()
-        if any(p in path for p in HIGH_RISK_PATTERNS):
+    def classify_event(event_path: str) -> str:
+        event_path = event_path.lower()
+        if any(p in event_path for p in HIGH_RISK_PATTERNS):
             return "high_risk"
-        if any(p in path for p in RCE_PATTERNS):
+        if any(p in event_path for p in RCE_PATTERNS):
             return "rce_attempt"
-        if any(p in path for p in TRAVERSAL_PATTERNS):
+        if any(p in event_path for p in TRAVERSAL_PATTERNS):
             return "traversal_attempt"
-        if any(p in path for p in SCANNER_PATTERNS):
+        if any(p in event_path for p in SCANNER_PATTERNS):
             return "scanner_activity"
-        if any(p in path for p in FILE_UPLOAD_PATTERNS):
+        if any(p in event_path for p in FILE_UPLOAD_PATTERNS):
             return "file_upload_attempt"
         
         return "normal"
     
     @staticmethod
-    def classify_severity(event_type: str) -> int:
+    def classify_severity(action: str) -> int:
         severity_mapping = {
             "high_risk": 4,
             "rce_attempt": 3,
@@ -127,4 +127,4 @@ class ApacheParserAdapter(LogParser):
             "normal": 1,
         }
 
-        return severity_mapping.get(event_type, 0)
+        return severity_mapping.get(action, 0)

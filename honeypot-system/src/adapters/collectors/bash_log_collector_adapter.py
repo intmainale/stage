@@ -1,7 +1,7 @@
 """Adapter: BashLogCollector — streams lines from bash/auditd log files."""
 
 from pathlib import Path
-from time import time
+import time
 from typing import Iterator
 
 from src.ports.outbound.log_collector_port import LogCollector
@@ -16,7 +16,7 @@ class BashLogCollectorAdapter(LogCollector):
     Log structure: 2026-05-15T10:42:11 path=/home/alex user=alex uid=1000 groups=admin,docker pid=4242 ppid=4110 exe=bash cmd="ls -la"
     """
 
-    DEFAULT_PATH = "/var/log/bash_history.log"
+    DEFAULT_PATH = "/root/.bash_history"
 
     def __init__(self) -> None:
         super().__init__()
@@ -30,12 +30,12 @@ class BashLogCollectorAdapter(LogCollector):
             return
 
         try:
-            yield from self._tail_file(self._path)
+            yield from self.tail_file(self._path)
 
         except OSError as exc:
             raise CollectionError(f"BashLogCollectorAdapter: read error: {exc}") from exc
     
-    def _tail_file(self, path: Path) -> Iterator[str]:
+    def tail_file(self, path: Path) -> Iterator[str]:
         """Tails a file and yields new lines as they are written."""
         with path.open("r", encoding="utf-8", errors="replace") as fh:
             fh.seek(0, 2)  # Move to end of file

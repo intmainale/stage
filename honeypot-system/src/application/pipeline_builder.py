@@ -1,12 +1,11 @@
 """
-Application: Director
+Application: Pipeline Builder
 Reads string-based config lists, calls the appropriate factory for each entry,
 and populates a Pipeline.  Adding a new adapter type = new factory entry only,
 zero changes here.
 """
-from __future__ import annotations
 
-from src.domain.models.pipeline import Pipeline
+from src.application.pipeline import Pipeline
 from src.factories.abstract_factories import (
     LogParserFactory,
     PublisherFactory,
@@ -16,7 +15,7 @@ from src.factories.abstract_factories import (
 from src.infrastructure.logger import Logger
 
 
-class Director:
+class PipelineBuilder:
 
     def __init__(
         self,
@@ -27,9 +26,9 @@ class Director:
     ) -> None:
         self._L                = Logger.get_instance()
         self._parser_factory   = parser_factory
-        self._pub_factory      = publisher_factory
-        self._col_factory      = collector_factory
-        self._enr_factory      = enricher_factory
+        self._publisher_factory      = publisher_factory
+        self._collector_factory      = collector_factory
+        self._enricher_factory      = enricher_factory
 
     def build(
         self,
@@ -53,21 +52,21 @@ class Director:
 
         for name in publishers:
             try:
-                pipeline.add_publisher(self._pub_factory.create_publisher(name))
+                pipeline.add_publisher(self._publisher_factory.create_publisher(name))
                 self._L.debug("Director: added publisher '%s'", name)
             except Exception as exc:
                 self._L.warning("Director: skipping publisher '%s' -- %s", name, exc)
 
         for name in collectors:
             try:
-                pipeline.add_collector(self._col_factory.create_log_collector(name))
+                pipeline.add_collector(self._collector_factory.create_log_collector(name))
                 self._L.debug("Director: added collector '%s'", name)
             except Exception as exc:
                 self._L.warning("Director: skipping collector '%s' -- %s", name, exc)
 
         for name in enrichers:
             try:
-                pipeline.add_enricher(self._enr_factory.create_log_enricher(name))
+                pipeline.add_enricher(self._enricher_factory.create_log_enricher(name))
                 self._L.debug("Director: added enricher '%s'", name)
             except Exception as exc:
                 self._L.warning("Director: skipping enricher '%s' -- %s", name, exc)
@@ -79,4 +78,5 @@ class Director:
             len(pipeline.enrichers),
             len(pipeline.publishers),
         )
+        
         return pipeline

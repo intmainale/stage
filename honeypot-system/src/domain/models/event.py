@@ -117,7 +117,7 @@ class BashEvent(Event):
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "command_line": self.command_line,
+            "cmd": self.cmd,
             "action": self.action,
             "severity_score": self.severity_score,
         }
