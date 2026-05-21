@@ -11,7 +11,7 @@ mqtt:
   topic: "eurosystem/logs"
 
 debug:
-  output_path: "/var/log/honeypot_system/debug.log"
+  output_path: "/var/log/honeypot/debug.log"
 
 # ── Log collectors ────────────────────────────────────────────────────────────
 collectors:
