@@ -16,16 +16,18 @@ from src.application.application import Application
 def main() -> None:
     cfg = Settings.get_instance()
 
-    services   = cfg.get("pipeline.services",   ["bash", "apache", ])
-    collectors = cfg.get("pipeline.collectors", ["bash"])
+    collectors = {
+        name: cfg.get(f"collectors.{name}", {})
+        for name in cfg.get("pipeline.collectors", [])
+    }
     publishers = cfg.get("pipeline.publishers", ["mqtt"])
     enrichers  = cfg.get("pipeline.enrichers",  [])
 
     app = Application(
-        services         = services,
-        publishers       = publishers,
         collectors       = collectors,
+        services         = collectors,
         enrichment_tools = enrichers,
+        publishers       = publishers
     )
 
     def _shutdown(signum, frame):

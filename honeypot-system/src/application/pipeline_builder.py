@@ -32,10 +32,10 @@ class PipelineBuilder:
 
     def build(
         self,
-        services:   list[str],
-        publishers: list[str],
-        collectors: list[str],
+        collectors: dict[str, dict],
+        services:   dict[str, dict],
         enrichers:  list[str],
+        publishers: list[str]
     ) -> Pipeline:
         """
         Iterate over each config list, delegate creation to the matching factory,
@@ -43,26 +43,23 @@ class PipelineBuilder:
         """
         pipeline = Pipeline()
 
-        for name in services:
+        for name, config in collectors.items():
             try:
-                pipeline.add_parser(name, self._parser_factory.create_log_parser(name))
-                self._L.debug("Director: added parser '%s'", name)
-            except Exception as exc:
-                self._L.warning("Director: skipping parser '%s' -- %s", name, exc)
-
-        for name in publishers:
-            try:
-                pipeline.add_publisher(self._publisher_factory.create_publisher(name))
-                self._L.debug("Director: added publisher '%s'", name)
-            except Exception as exc:
-                self._L.warning("Director: skipping publisher '%s' -- %s", name, exc)
-
-        for name in collectors:
-            try:
-                pipeline.add_collector(self._collector_factory.create_log_collector(name))
-                self._L.debug("Director: added collector '%s'", name)
+                paths = config.get("path", [])
+                for path in paths:
+                    pipeline.add_collector(self._collector_factory.create_log_collector(name, path))
+                    self._L.debug("Director: added collector '%s'", name)
             except Exception as exc:
                 self._L.warning("Director: skipping collector '%s' -- %s", name, exc)
+
+        for name, config in services.items():
+            try:
+                paths = config.get("path", [])
+                for path in paths:
+                    pipeline.add_parser(name, self._parser_factory.create_log_parser(name, path))
+                    self._L.debug("Director: added parser '%s'", name)
+            except Exception as exc:
+                self._L.warning("Director: skipping parser '%s' -- %s", name, exc)
 
         for name in enrichers:
             try:
@@ -70,6 +67,13 @@ class PipelineBuilder:
                 self._L.debug("Director: added enricher '%s'", name)
             except Exception as exc:
                 self._L.warning("Director: skipping enricher '%s' -- %s", name, exc)
+
+        for name in publishers:
+            try:
+                pipeline.add_publisher(self._publisher_factory.create_publisher(name))
+                self._L.debug("Director: added publisher '%s'", name)
+            except Exception as exc:
+                self._L.warning("Director: skipping publisher '%s' -- %s", name, exc)
 
         self._L.info(
             "Director: pipeline ready -- parsers=%d collectors=%d enrichers=%d publishers=%d",

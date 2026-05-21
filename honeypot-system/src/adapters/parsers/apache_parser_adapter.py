@@ -1,6 +1,7 @@
 """Adapter: ApacheParser — parses Apache combined-log-format lines."""
 from __future__ import annotations
 
+from pathlib import Path
 import re
 from datetime import datetime
 from typing import Optional
@@ -73,6 +74,12 @@ FILE_UPLOAD_PATTERNS = [
 class ApacheParserAdapter(LogParser):
     """Parses Apache / Nginx combined-log-format access log lines."""
 
+    DEFAULT_PATH = "/var/log/apache2/access.log"
+
+    def __init__(self, path: str) -> None:
+        super().__init__()
+        self.path = Path(path) if path else Path(self.DEFAULT_PATH)
+        
     def parse(self, raw_line: str) -> Optional[ApacheEvent]:
         raw_line = raw_line.strip()
         if not raw_line:

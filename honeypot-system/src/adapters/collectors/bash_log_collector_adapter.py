@@ -6,7 +6,6 @@ from typing import Iterator
 
 from src.ports.outbound.log_collector_port import LogCollector
 from src.domain.exceptions.domain_exceptions import CollectionError
-from config.settings import Settings
 
 
 class BashLogCollectorAdapter(LogCollector):
@@ -18,10 +17,9 @@ class BashLogCollectorAdapter(LogCollector):
 
     DEFAULT_PATH = "/root/.bash_history"
 
-    def __init__(self) -> None:
+    def __init__(self, path: str) -> None:
         super().__init__()
-        cfg = Settings.get_instance()
-        self._path = Path(cfg.get("collectors.bash.path", self.DEFAULT_PATH))
+        self._path = Path(path) if path else Path(self.DEFAULT_PATH)
 
     def collect(self) -> Iterator[str]:
         self._L.info("BashLogCollectorAdapter: reading from %s", self._path)

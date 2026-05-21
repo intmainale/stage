@@ -24,10 +24,10 @@ class Application:
 
     def __init__(
         self,
-        services:        list[str],
-        publishers:      list[str],
-        collectors:      list[str],
+        collectors:      dict[str, str],
+        services:        dict[str, str],
         enrichment_tools: list[str],
+        publishers:      list[str],
     ) -> None:
         self._L               = Logger.get_instance()
         self._services        = services

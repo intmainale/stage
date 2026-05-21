@@ -16,19 +16,24 @@ debug:
 # ── Log collectors ────────────────────────────────────────────────────────────
 collectors:
   bash:
-    path: "/var/log/bash_history.log"
+    path: 
+      - "/root/.bash_history"
   auditd:
-    path: "/var/log/audit/audit.log"
+    path:
+      - "/var/log/audit/audit.log"
   journald:
     unit:  ""          # empty = all units; set e.g. "sshd.service"
     lines: "500"
   apache:
-    access_path: "/var/log/apache2/access.log"
-    error_path: "/var/log/apache2/error.log"
+    path:
+      - "/var/log/apache2/access.log"
+      - "/var/log/apache2/error.log"
   ftp:
-    path: "/var/log/vsftpd.log"
+    path:
+      - "/var/log/vsftpd.log"
   cowrie:
-    path: "/var/log/cowrie"
+    path: 
+      - "/var/log/cowrie"
 
 # ── Threat-intel enrichers ────────────────────────────────────────────────────
 enrichers:

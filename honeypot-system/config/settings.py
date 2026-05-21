@@ -6,6 +6,7 @@ conventions (e.g. MQTT_HOST for mqtt.host).
 """
 from __future__ import annotations
 
+from glob import glob
 import os
 import threading
 from pathlib import Path
@@ -30,6 +31,8 @@ class Settings:
         if _YAML_AVAILABLE and path.exists():
             with path.open("r") as fh:
                 self._data = yaml.safe_load(fh) or {}
+
+        self._expand_paths()
         # Environment variables act as overrides: MQTT_HOST → mqtt.host
         for key, val in os.environ.items():
             dotted = key.lower().replace("_", ".", 1)
@@ -54,3 +57,23 @@ class Settings:
             if node is None:
                 return default
         return node if node is not None else default
+    
+    def _expand_paths(self) -> None:
+        collectors = self._data.get("collectors", {})
+        bash_collector = collectors.get("bash", {})
+
+        if not bash_collector:
+            return
+
+        configured_paths = bash_collector.get("path", [])
+
+        pattern = "/home/*/.bash_history"
+
+        discovered = []
+        for path in glob(pattern):
+            p = Path(path)
+
+            if p.exists() and p.is_file():
+                discovered.append(str(p))
+
+        bash_collector["path"] = list(dict.fromkeys(configured_paths + discovered))

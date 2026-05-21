@@ -52,12 +52,12 @@ class ConcreteLogParserFactory(LogParserFactory):
         "auditd":         AuditdParserAdapter,
     }
 
-    def create_log_parser(self, parser_type: str) -> LogParser:
+    def create_log_parser(self, parser_type: str, path: str) -> LogParser:
         cls = self._REGISTRY.get(parser_type.lower())
         if cls is None:
             raise ConfigurationError(f"Unknown parser type: '{parser_type}'")
         self._L.debug("Creating parser: %s", parser_type)
-        return cls()
+        return cls(path)
 
 
 class ConcretePublisherFactory(PublisherFactory):
@@ -82,12 +82,12 @@ class ConcreteLogCollectorFactory(LogCollectorFactory):
         "apache":  ApacheLogCollectorAdapter,
     }
 
-    def create_log_collector(self, collector_type: str) -> LogCollector:
+    def create_log_collector(self, collector_type: str, path: str) -> LogCollector:
         cls = self._REGISTRY.get(collector_type.lower())
         if cls is None:
             raise ConfigurationError(f"Unknown collector type: '{collector_type}'")
         self._L.debug("Creating collector: %s", collector_type)
-        return cls()
+        return cls(path)
 
 
 class ConcreteLogEnricherFactory(LogEnricherFactory):

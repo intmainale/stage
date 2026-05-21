@@ -3,6 +3,7 @@
 import re
 from datetime import datetime, timezone
 from typing import Optional
+from pathlib import Path
 
 from src.ports.outbound.log_parser_port import LogParser
 from src.domain.models.event import AuditdExecEvent
@@ -18,6 +19,12 @@ class AuditdParserAdapter(LogParser):
     """
     Parses ONLY auditd execve/syscall events.
     """
+
+    DEFAULT_PATH = "/var/log/audit/audit.log"
+
+    def __init__(self, path: str) -> None:
+        super().__init__()
+        self.path = Path(path) if path else Path(self.DEFAULT_PATH)
 
     def parse(self, raw_line: str) -> Optional[AuditdExecEvent]:
         """

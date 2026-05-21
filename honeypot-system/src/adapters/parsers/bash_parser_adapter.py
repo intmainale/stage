@@ -1,5 +1,6 @@
 ﻿"""Adapter: BashParserAdapter — parses bash history, journald wrapped bash events, and auditd EXECVE events."""
 
+from pathlib import Path
 import re
 from datetime import datetime, timezone
 from typing import Optional
@@ -41,6 +42,12 @@ _NETWORK   = {"ssh ", "scp ", "nc ", "ncat ", "telnet "}
 class BashParserAdapter(LogParser):
     """Parses bash service events from bash history"""
 
+    DEFAULT_PATH = "/root/.bash_history"
+
+    def __init__(self, path: str) -> None:
+        super().__init__()
+        self._path = Path(path) if path else Path(self.DEFAULT_PATH)
+        
     def parse(self, raw_line: str) -> Optional[BashEvent]:
         """
         Example input:

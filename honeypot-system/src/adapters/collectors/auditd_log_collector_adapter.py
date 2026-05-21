@@ -6,7 +6,6 @@ from typing import Iterator
 
 from src.ports.outbound.log_collector_port import LogCollector
 from src.domain.exceptions.domain_exceptions import CollectionError
-from config.settings import Settings
 
 
 class AuditdLogCollectorAdapter(LogCollector):
@@ -17,23 +16,22 @@ class AuditdLogCollectorAdapter(LogCollector):
 
     DEFAULT_PATH = "/var/log/audit/audit.log"
 
-    def __init__(self) -> None:
+    def __init__(self, path: str) -> None:
         super().__init__()
-        cfg = Settings.get_instance()
-        self._path = Path(cfg.get("collectors.auditd.path", self.DEFAULT_PATH))
+        self._path = Path(path) if path else Path(self.DEFAULT_PATH)
 
     def collect(self) -> Iterator[str]:
-        self._L.info("AuditdLogCollectorAdapter: reading from %s", self._path)
+        self._L.info(f"AuditdLogCollectorAdapter {self._path}: reading from {self._path}")
         if not self._path.exists():
-            self._L.warning("AuditdLogCollectorAdapter: file not found: %s", self._path)
+            self._L.warning(f"AuditdLogCollectorAdapter {self._path}: file not found: {self._path}")
             return
 
         try:
             yield from self.tail_file(self._path)
                     
         except OSError as exc:
-            raise CollectionError(f"AuditdLogCollectorAdapter: read error: {exc}") from exc
-    
+            raise CollectionError(f"AuditdLogCollectorAdapter {self._path}: read error: {exc}") from exc
+
     def tail_file(self, path: Path) -> Iterator[str]:
         """Tails a file and yields new lines as they are written."""
         with path.open("r", encoding="utf-8", errors="replace") as fh:
