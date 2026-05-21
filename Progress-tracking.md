@@ -266,3 +266,22 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - dataclasses module: https://docs.python.org/3/library/dataclasses.html,
 - Exceptions: https://docs.python.org/3/tutorial/errors.html
 - Decorators: https://peps.python.org/pep-0318/
+
+## Week 4
+
+🧠 Class diagram
+- Final draft, open to small changes during the development. Builder design pattern dropped
+- 1-1 correspondance between services and collectors, each service log source has a collector of its own. Journald dropped for now: reason -> useless events
+
+⚙️ Class implementation
+- Changed implementation of multiple modules to be able to collect through multiple paths per service
+- Collector thread cycle is now handled
+- Event hierarchy has changed into subclasses: EnrichableEvents and the rest of them
+- System requirements are now handled by a .txt file
+- README first draft
+
+📖 Apache logging
+Apache log structure: https://httpd.apache.org/docs/2.4/logs.html
+
+📖 Python
+pyYAML documentation: https://pyyaml.org/wiki/PyYAMLDocumentation
