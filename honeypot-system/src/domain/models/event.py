@@ -123,14 +123,13 @@ class BashEvent(Event):
 @dataclass
 class ApacheEvent(EnrichableEvent):
     source: str = "apache"
-    ip: str | None = None
     user: str | None = None
     method: str | None = None
     path: str | None = None
     status: int | None = None
     size: int | None = None
     enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
-
+ 
     def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp.isoformat(),

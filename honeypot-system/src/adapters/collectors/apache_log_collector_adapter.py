@@ -1,4 +1,5 @@
 from pathlib import Path
+import threading
 import time
 from typing import Iterator
 
@@ -17,23 +18,23 @@ class ApacheLogCollectorAdapter(LogCollector):
         super().__init__()
         self.path = Path(path) if path else Path(self.DEFAULT_PATH)
         
-    def collect(self) -> Iterator[str]:
+    def collect(self, stop_event: threading.Event) -> Iterator[str]:
         self._L.info(f"ApacheLogCollectorAdapter {self.path}: reading from {self.path}")
         if not self.path.exists():
             self._L.warning(f"ApacheLogCollectorAdapter {self.path}: log not found: {self.path}")
             return
         try:
-            yield from self.tail_file(self.path)
+            yield from self.tail_file(self.path, stop_event)
 
         except OSError as exc:
             raise CollectionError(f"ApacheLogCollectorAdapter {self.path}: read error: {exc}") from exc
 
-    def tail_file(self, path: Path) -> Iterator[str]:
+    def tail_file(self, path: Path, stop_event: threading.Event) -> Iterator[str]:
         """Tails a file and yields new lines as they are written."""
         with path.open("r", encoding="utf-8", errors="replace") as fh:
             fh.seek(0, 2)  # Move to end of file
 
-            while True:
+            while not stop_event.is_set():
                 line = fh.readline()
                 if line:
                     yield line.strip()

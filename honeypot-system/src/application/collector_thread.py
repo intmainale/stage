@@ -41,7 +41,7 @@ class CollectorThread(threading.Thread):
         self._L.info("CollectorThread started: %s", collector_name)
 
         try:
-            for raw_line in self._collector.collect():
+            for raw_line in self._collector.collect(self._stop_event):
                 
                 if self._stop_event.is_set():
                     self._L.info("CollectorThread stopping: %s", collector_name)

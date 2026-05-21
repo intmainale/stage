@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 
 from src.ports.outbound.log_parser_port import LogParser
-from src.domain.models.event import ApacheEvent
+from src.domain.models.event import ApacheEvent, EnrichmentBundle, VirusTotalInfo
 from src.domain.exceptions.domain_exceptions import ParseError
 
 # Combined Log Format
@@ -94,6 +94,10 @@ class ApacheParserAdapter(LogParser):
         except ValueError as exc:
             raise ParseError(f"ApacheParser: bad timestamp: {exc}") from exc
 
+        enrichments = EnrichmentBundle(
+            virustotal=VirusTotalInfo()
+        )
+        
         event = ApacheEvent(
             timestamp = ts,
             source    = "apache",
@@ -103,6 +107,7 @@ class ApacheParserAdapter(LogParser):
             path      = m.group("path"),
             status    = int(m.group("status")),
             size      = int(m.group("size")),
+            enrichments = enrichments
         )
 
         return event

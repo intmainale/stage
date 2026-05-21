@@ -1,6 +1,7 @@
 """Adapter: AuditdLogCollector — streams lines from /var/log/audit/audit.log."""
 
 from pathlib import Path
+import threading
 import time
 from typing import Iterator
 
@@ -20,24 +21,24 @@ class AuditdLogCollectorAdapter(LogCollector):
         super().__init__()
         self._path = Path(path) if path else Path(self.DEFAULT_PATH)
 
-    def collect(self) -> Iterator[str]:
+    def collect(self, stop_event: threading.Event) -> Iterator[str]:
         self._L.info(f"AuditdLogCollectorAdapter {self._path}: reading from {self._path}")
         if not self._path.exists():
             self._L.warning(f"AuditdLogCollectorAdapter {self._path}: file not found: {self._path}")
             return
 
         try:
-            yield from self.tail_file(self._path)
+            yield from self.tail_file(self._path, stop_event)
                     
         except OSError as exc:
             raise CollectionError(f"AuditdLogCollectorAdapter {self._path}: read error: {exc}") from exc
 
-    def tail_file(self, path: Path) -> Iterator[str]:
+    def tail_file(self, path: Path, stop_event: threading.Event) -> Iterator[str]:
         """Tails a file and yields new lines as they are written."""
         with path.open("r", encoding="utf-8", errors="replace") as fh:
             fh.seek(0, 2)  # Move to end of file
 
-            while True:
+            while not stop_event.is_set():
                 line = fh.readline()
                 if line:
                     yield line.strip()

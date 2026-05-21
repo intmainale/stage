@@ -35,8 +35,9 @@ class VirusTotalEnricherAdapter(LogEnricher):
         if not self._api_key or not entry.ip:
             return entry
 
+        now = time.time()
         cached = _CACHE.get(entry.ip)
-        if cached and (time.time() - cached["_ts"]) < _CACHE_TTL:
+        if cached and (now - cached["_ts"]) < _CACHE_TTL:
             #entry.enrich("virustotal", cached["data"])
             for key, value in cached["data"].items():
                 setattr(entry.enrichments.virustotal, key, value)
@@ -62,7 +63,7 @@ class VirusTotalEnricherAdapter(LogEnricher):
                     "harmless":   stats.get("harmless", 0),
                     "reputation": stats.get("reputation", 0),
                 }
-                _CACHE[entry.ip] = {"data": result, "_ts": time.time()}
+                _CACHE[entry.ip] = {"data": result, "_ts": now}
                 #entry.enrich("virustotal", result)
                 for key, value in result.items():
                     setattr(entry.enrichments.virustotal, key, value)
