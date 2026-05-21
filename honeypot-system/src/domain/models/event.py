@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
-from uuid import uuid4
 
 # ── Enrichments ────────────────────────────────────────────────────────────────────
 
@@ -67,20 +66,19 @@ class EnrichmentBundle:
 
 @dataclass
 class Event:
-    pass
+    source: str = "generic"
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 @dataclass
 class EnrichableEvent(Event):
-    timestamp: datetime
     ip: str | None = None
     enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
 
 @dataclass
 class AuditdExecEvent(Event):
     source: str = "auditd"
-    timestamp: float | None = None
-    event_id: int | None = None
 
+    event_id: int | None = None
     pid: int | None = None
     ppid: int | None = None
     uid: int | None = None
@@ -124,7 +122,6 @@ class BashEvent(Event):
 
 @dataclass
 class ApacheEvent(EnrichableEvent):
-    timestamp: datetime
     source: str = "apache"
     ip: str | None = None
     user: str | None = None
