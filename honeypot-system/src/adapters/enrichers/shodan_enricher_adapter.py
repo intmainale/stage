@@ -54,7 +54,7 @@ class ShodanEnricherAdapter(LogEnricher):
             with urllib.request.urlopen(url, timeout=5) as resp:
                 body = json.loads(resp.read())
                 result = {
-                    "ports":        body.get("ports", []),
+                    "open_ports":   body.get("ports", []),
                     "tags":         body.get("tags", []),
                     "asn":          body.get("asn", ""),
                     "os":           body.get("os", ""),

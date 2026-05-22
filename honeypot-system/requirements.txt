@@ -1,2 +1,5 @@
 PyYAML
 paho-mqtt
+coverage
+pytest
+pytest-cov
