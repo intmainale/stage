@@ -273,15 +273,50 @@ This document tracks weekly progress, decisions, and technical evolution of the 
 - Final draft, open to small changes during the development. Builder design pattern dropped
 - 1-1 correspondance between services and collectors, each service log source has a collector of its own. Journald dropped for now: reason -> useless events
 
+🧠 Technology
+- Dropped Shodan because of lacking of a free plan
+
 ⚙️ Class implementation
 - Changed implementation of multiple modules to be able to collect through multiple paths per service
 - Collector thread cycle is now handled
 - Event hierarchy has changed into subclasses: EnrichableEvents and the rest of them
 - System requirements are now handled by a .txt file
-- README first draft
+
+🧾 README first draft
+- Description of NullHive
+- Installation procedures
+- Requirements and use cases
+- Pipeline configuration
+- Logging configuration
+- System configuration
+
+🧾 Testing & Validation
+- Wrote testing strategy, swe model V reference
+- Unit testing, Integration testing, System testing draft
+
+🧾 Coding
+- Code structure, file tree with modules and packages
+- Module and package responsabilities
+- Logging and error handling implementation draft
+- Concorrency model implementation
+
+🧾 Data structure and diagrams
+- Pipeline, Event hierarchy class definition and responsability
+- Sequence diagram and Flow diagram highlighting the concorrency between collectors
+
+🧾 Technologies
+- Draft of OSINT threat intelligence APIs choice: VirusTotal, AbuseIPDB, Shodan
+- Draft of concorrency library choice: Threading, Asyncio
+
+🧪 Unit testing
+- Pytest library for code coverage related metrics and test success rate
+- Reproducible testing suite
+- Test/ maintains the same file tree of src/
+- Unit test with mock modules of every file - settings.py, main.py
 
 📖 Apache logging
 Apache log structure: https://httpd.apache.org/docs/2.4/logs.html
 
 📖 Python
 pyYAML documentation: https://pyyaml.org/wiki/PyYAMLDocumentation
+GIL: https://wiki.python.org/moin/GlobalInterpreterLock
