@@ -93,10 +93,6 @@ class ApacheParserAdapter(LogParser):
             ts = datetime.strptime(m.group("ts"), _TS_FMT)
         except ValueError as exc:
             raise ParseError(f"ApacheParser: bad timestamp: {exc}") from exc
-
-        enrichments = EnrichmentBundle(
-            virustotal=VirusTotalInfo()
-        )
         
         event = ApacheEvent(
             timestamp = ts,
@@ -107,7 +103,6 @@ class ApacheParserAdapter(LogParser):
             path      = m.group("path"),
             status    = int(m.group("status")),
             size      = int(m.group("size")),
-            enrichments = enrichments
         )
 
         return event

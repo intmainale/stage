@@ -12,6 +12,7 @@ from src.application.pipeline import Pipeline
 from src.domain.exceptions.domain_exceptions import (
     ParseError, CollectionError, PublishError, EnrichmentError,
 )
+from src.domain.models.event import EnrichableEvent
 from src.infrastructure.logger import Logger
 from src.ports.outbound.log_collector_port import LogCollector
 
@@ -53,13 +54,6 @@ class CollectorThread(threading.Thread):
                         event = self._pipeline.parsers["apache"].parse(raw_line)
                     except ParseError as exc:
                         self._L.error("Parse error [%s]: %s", "apache", exc)
-                    
-                    if event is not None:
-                        for enricher in self._pipeline.enrichers:
-                            try:
-                                event = enricher.enrich(event)
-                            except EnrichmentError as exc:
-                                self._L.warning(exc)
 
                 elif isinstance(self._collector, BashLogCollectorAdapter):
                     try:
@@ -76,6 +70,13 @@ class CollectorThread(threading.Thread):
                 else:
                     raise ParseError(f"No parser found for collector type: {type(self._collector).__name__}")
                 
+                if event is not None and isinstance(event, EnrichableEvent):
+                    for enricher in self._pipeline.enrichers:
+                        try:
+                            event = enricher.enrich(event)
+                        except EnrichmentError as exc:
+                            self._L.warning(exc)
+
                 if event is not None:
                     for publisher in self._pipeline.publishers:
                         try:

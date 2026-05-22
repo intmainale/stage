@@ -49,4 +49,4 @@ pipeline:
   services:    ["bash", "apache", "auditd"]
   collectors:  ["bash", "apache", "auditd"]
   publishers:  ["mqtt"]
-  enrichers:   ["virustotal", "abuseipdb", "shodan"]
+  enrichers:   ["virustotal", "abuseipdb"] # shodan free plan can't query host api gateway

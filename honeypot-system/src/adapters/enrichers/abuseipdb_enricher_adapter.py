@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 
 from src.ports.outbound.log_enricher_port import LogEnricher
-from src.domain.models.event import EnrichableEvent
+from src.domain.models.event import AbuseIPDBInfo, EnrichableEvent, EnrichmentBundle
 from src.domain.exceptions.domain_exceptions import EnrichmentError
 from config.settings import Settings
 
@@ -37,7 +37,12 @@ class AbuseIPDBEnricherAdapter(LogEnricher):
     def enrich(self, entry: EnrichableEvent) -> EnrichableEvent:
         if not self._api_key or not entry.ip:
             return entry
-
+        
+        if not entry.enrichments:
+            entry.enrichments = EnrichmentBundle()
+        
+        entry.enrichments.abuseipdb = AbuseIPDBInfo()
+        
         now = time.time()
         cached = _CACHE.get(entry.ip)
         if cached and (now - cached["_ts"]) < _CACHE_TTL:

@@ -9,7 +9,7 @@ import urllib.request
 import json
 
 from src.ports.outbound.log_enricher_port import LogEnricher
-from src.domain.models.event import EnrichableEvent
+from src.domain.models.event import EnrichableEvent, VirusTotalInfo, EnrichmentBundle
 from src.domain.exceptions.domain_exceptions import EnrichmentError
 from config.settings import Settings
 
@@ -35,6 +35,11 @@ class VirusTotalEnricherAdapter(LogEnricher):
     def enrich(self, entry: EnrichableEvent) -> EnrichableEvent:
         if not self._api_key or not entry.ip:
             return entry
+
+        if not entry.enrichments:
+            entry.enrichments = EnrichmentBundle()
+        
+        entry.enrichments.virustotal = VirusTotalInfo()
 
         now = time.time()
         cached = _CACHE.get(entry.ip)
