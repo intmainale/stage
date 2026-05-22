@@ -89,14 +89,14 @@ class AbuseIPDBEnricherAdapter(LogEnricher):
         return entry
 
 
-def use_stale_cache(self, entry: EnrichableEvent, cached: dict | None, now: float) -> bool:
-    if cached and (now - cached["_ts"]) < _STALE_CACHE_TTL:
-        self._L.warning("AbuseIPDBEnricherAdapter: using stale cache for %s", entry.ip)
-        self.apply_enrichment(entry, cached["data"])
-        return True
-    return False
+    def use_stale_cache(self, entry: EnrichableEvent, cached: dict | None, now: float) -> bool:
+        if cached and (now - cached["_ts"]) < _STALE_CACHE_TTL:
+            self._L.warning("AbuseIPDBEnricherAdapter: using stale cache for %s", entry.ip)
+            self.apply_enrichment(entry, cached["data"])
+            return True
+        return False
 
 
-def apply_enrichment(self, entry: EnrichableEvent, data: dict) -> None:
-    for key, value in data.items():
-        setattr(entry.enrichments.abuseipdb, key, value)
+    def apply_enrichment(self, entry: EnrichableEvent, data: dict) -> None:
+        for key, value in data.items():
+            setattr(entry.enrichments.abuseipdb, key, value)
