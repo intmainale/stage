@@ -16,6 +16,7 @@ from config.settings import Settings
 _VT_BASE = "https://www.virustotal.com/api/v3/ip_addresses"
 _CACHE: dict[str, dict] = {}   # simple in-process TTL cache
 _CACHE_TTL = 300               # seconds
+_STALE_CACHE_TTL = 3600        # allow using stale cache for 1 hour if API quota is exceeded
 
 
 class VirusTotalEnricherAdapter(LogEnricher):
@@ -38,9 +39,7 @@ class VirusTotalEnricherAdapter(LogEnricher):
         now = time.time()
         cached = _CACHE.get(entry.ip)
         if cached and (now - cached["_ts"]) < _CACHE_TTL:
-            #entry.enrich("virustotal", cached["data"])
-            for key, value in cached["data"].items():
-                setattr(entry.enrichments.virustotal, key, value)
+            self.apply_enrichment(entry, cached["data"])
             return entry
 
         url = f"{_VT_BASE}/{entry.ip}"
@@ -64,12 +63,36 @@ class VirusTotalEnricherAdapter(LogEnricher):
                     "reputation": stats.get("reputation", 0),
                 }
                 _CACHE[entry.ip] = {"data": result, "_ts": now}
-                #entry.enrich("virustotal", result)
-                for key, value in result.items():
-                    setattr(entry.enrichments.virustotal, key, value)
+                
+                self.apply_enrichment(entry, result)
                 self._L.debug("VirusTotalEnricherAdapter: enriched %s", entry.ip)
 
+        except urllib.error.HTTPError as http_exc:
+            if http_exc.code == 429:  # Too Many Requests
+                self._L.warning("VirusTotalEnricherAdapter: quota exceeded for %s", entry.ip)
+            
+                if self.use_stale_cache(entry, cached, now):
+                    return entry
+                
+                raise EnrichmentError(f"VirusTotalEnricherAdapter: quota exceeded and no valid cache for {entry.ip}") from http_exc
+            
+            if self.use_stale_cache(entry, cached, now):
+                return entry
+            
+            raise EnrichmentError(f"VirusTotalEnricherAdapter: HTTP error {http_exc.code} for {entry.ip}: {http_exc.reason}") from http_exc
+
         except Exception as exc:  # noqa: BLE001
-            raise EnrichmentError(f"VirusTotalEnricherAdapter: API error for {entry.ip}: {exc}") from exc
+            raise EnrichmentError(f"VirusTotalEnricherAdapter: enrichment error for {entry.ip}: {exc}") from exc
 
         return entry
+    
+def use_stale_cache(self, entry: EnrichableEvent, cached: dict | None, now: float) -> bool:
+    if cached and (now - cached["_ts"]) < _STALE_CACHE_TTL:
+        self._L.warning("VirusTotalEnricherAdapter: using stale cache for %s", entry.ip)
+        self.apply_enrichment(entry, cached["data"])
+        return True
+    return False
+
+def apply_enrichment(self, entry: EnrichableEvent, data: dict) -> None:
+    for key, value in data.items():
+        setattr(entry.enrichments.virustotal, key, value)

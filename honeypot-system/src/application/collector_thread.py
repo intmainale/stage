@@ -59,7 +59,7 @@ class CollectorThread(threading.Thread):
                             try:
                                 event = enricher.enrich(event)
                             except EnrichmentError as exc:
-                                self._L.warning("Enrichment error [%s]: %s", type(enricher).__name__, exc)
+                                self._L.warning(exc)
 
                 elif isinstance(self._collector, BashLogCollectorAdapter):
                     try:
