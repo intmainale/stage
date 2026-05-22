@@ -5,3 +5,10 @@ ex_log.txt
 
 sandbox/
 mosquitto/
+
+# test files
+.coverage
+coverage.xml
+.pytest_cache/
+
+.venv/
