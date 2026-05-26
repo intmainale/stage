@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import Mock, patch
 
 from src.adapters.publishers import mqtt_publisher_adapter as mqtt_module
 from src.adapters.publishers.mqtt_publisher_adapter import MQTTPublisherAdapter
@@ -23,7 +22,7 @@ def test_mqtt_publisher_dry_run_when_paho_unavailable(monkeypatch):
     publisher.publish(event)
 
 
-def test_mqtt_publisher_raises_on_bad_publish_rc(monkeypatch):
+def test_mqtt_publisher_raises_on_bad_publish_rc(monkeypatch, mocker):
     class DummyClient:
         def connect(self, host, port, keepalive):
             pass
@@ -32,7 +31,7 @@ def test_mqtt_publisher_raises_on_bad_publish_rc(monkeypatch):
             pass
 
         def publish(self, topic, payload):
-            return Mock(rc=1)
+            return mocker.Mock(rc=1)
 
         def loop_stop(self):
             pass

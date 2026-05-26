@@ -1,10 +1,10 @@
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
 from src.adapters.collectors.auditd_log_collector_adapter import AuditdLogCollectorAdapter
+from src.domain.exceptions.domain_exceptions import CollectionError
 
 
 def test_collect_returns_empty_when_file_missing(tmp_path):
@@ -12,9 +12,9 @@ def test_collect_returns_empty_when_file_missing(tmp_path):
     assert list(adapter.collect(threading.Event())) == []
 
 
-def test_tail_file_yields_line_and_stops(monkeypatch):
+def test_tail_file_yields_line_and_stops(monkeypatch, mocker):
     adapter = AuditdLogCollectorAdapter(str(Path("/tmp/log")))
-    fake_file = MagicMock()
+    fake_file = mocker.MagicMock()
     fake_file.__enter__.return_value = fake_file
     fake_file.seek.return_value = None
     fake_file.readline.side_effect = ["audit line\n", ""]
@@ -29,3 +29,18 @@ def test_tail_file_yields_line_and_stops(monkeypatch):
     stop_event.set()
     with pytest.raises(StopIteration):
         next(generator)
+
+
+def test_collect_wraps_os_errors(tmp_path, monkeypatch):
+    log_file = tmp_path / "audit.log"
+    log_file.write_text("", encoding="utf-8")
+    adapter = AuditdLogCollectorAdapter(str(log_file))
+
+    def raise_os_error(path, stop_event):
+        raise OSError("cannot read")
+        yield
+
+    monkeypatch.setattr(adapter, "tail_file", raise_os_error)
+
+    with pytest.raises(CollectionError, match="read error"):
+        list(adapter.collect(threading.Event()))

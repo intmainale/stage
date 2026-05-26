@@ -1,15 +1,10 @@
 import json
-import os
-import sys
 import time
-import unittest
 import urllib.error
-from unittest.mock import Mock, patch
-from pathlib import Path
 
-# Add project root to path for real src imports
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
-sys.path.insert(0, str(PROJECT_ROOT))
+import pytest
+
+FIXED_TS = time.time()
 
 from src.domain.models.event import EnrichableEvent
 from src.adapters.enrichers.abuseipdb_enricher_adapter import AbuseIPDBEnricherAdapter, _CACHE as ABUSE_CACHE
@@ -25,57 +20,54 @@ class DummySettings:
         return default
 
 
-class TestAbuseIPDBEnricherAdapter(unittest.TestCase):
+@pytest.fixture
+def entry():
+    ABUSE_CACHE.clear()
+    return EnrichableEvent(ip="1.2.3.4")
 
-    def setUp(self):
-        ABUSE_CACHE.clear()
-        self.entry = EnrichableEvent(ip="1.2.3.4")
 
-    @patch("config.settings.Settings.get_instance", return_value=DummySettings("KEY123"))
-    @patch("urllib.request.urlopen")
-    def test_enrich_success(self, mock_urlopen, _):
-        response_body = {
-            "data": {
-                "abuseConfidenceScore": 85,
-                "totalReports": 12,
-                "countryName": "US",
-                "isp": "Example ISP",
-                "usageType": "Data Center",
-            }
+def test_enrich_success(mocker, entry):
+    mocker.patch("config.settings.Settings.get_instance", return_value=DummySettings("KEY123"))
+    mock_urlopen = mocker.patch("urllib.request.urlopen")
+
+    response_body = {
+        "data": {
+            "abuseConfidenceScore": 85,
+            "totalReports": 12,
+            "countryName": "US",
+            "isp": "Example ISP",
+            "usageType": "Data Center",
         }
-        mock_resp = Mock()
-        mock_resp.read.return_value = json.dumps(response_body).encode("utf-8")
-        mock_urlopen.return_value.__enter__.return_value = mock_resp
+    }
+    mock_resp = mock_urlopen.return_value.__enter__.return_value
+    mock_resp.read.return_value = json.dumps(response_body).encode("utf-8")
 
-        enricher = AbuseIPDBEnricherAdapter()
-        result = enricher.enrich(self.entry)
+    enricher = AbuseIPDBEnricherAdapter()
+    result = enricher.enrich(entry)
 
-        self.assertEqual(result.enrichments.abuseipdb.abuse_confidence_score, 85)
-        self.assertEqual(result.enrichments.abuseipdb.total_reports, 12)
-        self.assertEqual(result.enrichments.abuseipdb.country, "US")
-        self.assertEqual(result.enrichments.abuseipdb.isp, "Example ISP")
-        self.assertEqual(result.enrichments.abuseipdb.usage_type, "Data Center")
-
-    @patch("config.settings.Settings.get_instance", return_value=DummySettings("KEY123"))
-    @patch("urllib.request.urlopen")
-    @patch("time.time", return_value=1_000_000.0)
-    def test_enrich_http_429_uses_stale_cache(self, mock_time, mock_urlopen, _):
-        ABUSE_CACHE["1.2.3.4"] = {"data": {"abuse_confidence_score": 77}, "_ts": 1_000_000.0 - 3_500}
-        http_exc = urllib.error.HTTPError(url="", code=429, msg="Too Many Requests", hdrs=None, fp=None)
-        mock_urlopen.side_effect = http_exc
-
-        enricher = AbuseIPDBEnricherAdapter()
-        result = enricher.enrich(self.entry)
-
-        self.assertEqual(result.enrichments.abuseipdb.abuse_confidence_score, 77)
-
-    @patch("config.settings.Settings.get_instance", return_value=DummySettings(""))
-    def test_enrich_without_api_key_returns_entry(self, _):
-        enricher = AbuseIPDBEnricherAdapter()
-        result = enricher.enrich(self.entry)
-        self.assertIs(result, self.entry)
-        self.assertIsNone(result.enrichments.abuseipdb)
+    assert result.enrichments.abuseipdb.abuse_confidence_score == 85
+    assert result.enrichments.abuseipdb.total_reports == 12
+    assert result.enrichments.abuseipdb.country == "US"
+    assert result.enrichments.abuseipdb.isp == "Example ISP"
+    assert result.enrichments.abuseipdb.usage_type == "Data Center"
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_enrich_http_429_uses_stale_cache(mocker, entry):
+    mocker.patch("config.settings.Settings.get_instance", return_value=DummySettings("KEY123"))
+    http_exc = urllib.error.HTTPError(url="", code=429, msg="Too Many Requests", hdrs=None, fp=None)
+    mocker.patch("urllib.request.urlopen", side_effect=http_exc)
+    ABUSE_CACHE[entry.ip] = {"data": {"abuse_confidence_score": 77}, "_ts": FIXED_TS - 3_500}
+
+    enricher = AbuseIPDBEnricherAdapter()
+    result = enricher.enrich(entry)
+
+    assert result.enrichments.abuseipdb.abuse_confidence_score == 77
+
+
+def test_enrich_without_api_key_returns_entry(mocker, entry):
+    mocker.patch("config.settings.Settings.get_instance", return_value=DummySettings(""))
+
+    result = AbuseIPDBEnricherAdapter().enrich(entry)
+
+    assert result is entry
+    assert result.enrichments.abuseipdb is None

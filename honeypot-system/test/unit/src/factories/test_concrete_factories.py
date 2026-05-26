@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from src.factories.concrete_factories import (
@@ -21,16 +19,16 @@ def test_concrete_log_collector_factory_creates_known_collector():
     assert collector is not None
 
 
-def test_concrete_log_enricher_factory_creates_known_enricher_with_patched_init():
-    with patch("src.factories.concrete_factories.VirusTotalEnricherAdapter.__init__", return_value=None):
-        enricher = ConcreteLogEnricherFactory().create_log_enricher("virustotal")
-        assert enricher is not None
+def test_concrete_log_enricher_factory_creates_known_enricher_with_patched_init(mocker):
+    mocker.patch("src.factories.concrete_factories.VirusTotalEnricherAdapter.__init__", return_value=None)
+    enricher = ConcreteLogEnricherFactory().create_log_enricher("virustotal")
+    assert enricher is not None
 
 
-def test_concrete_publisher_factory_creates_debug_publisher_with_patched_init():
-    with patch("src.factories.concrete_factories.DebugFilePublisherAdapter.__init__", return_value=None):
-        publisher = ConcretePublisherFactory().create_publisher("debug")
-        assert publisher is not None
+def test_concrete_publisher_factory_creates_debug_publisher_with_patched_init(mocker):
+    mocker.patch("src.factories.concrete_factories.DebugFilePublisherAdapter.__init__", return_value=None)
+    publisher = ConcretePublisherFactory().create_publisher("debug")
+    assert publisher is not None
 
 
 def test_concrete_factories_raise_on_unknown_type():
