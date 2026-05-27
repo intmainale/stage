@@ -141,3 +141,47 @@ class ApacheEvent(EnrichableEvent):
             "size": self.size,
             "enrichments": self.enrichments.to_dict() if self.enrichments else None,
         }
+
+@dataclass
+class FTPEvent(EnrichableEvent):
+    source: str = "ftp-extended"
+
+    username: str | None = None
+    command: str | None = None
+    operation: str | None = None
+    action: str | None = None
+
+    success: bool | None = None
+    status: str | None = None
+    severity_score: int | None = None
+
+    file_path: str | None = None
+    bytes_transferred: int | None = None
+    access_mode: str | None = None
+
+    pid: int | None = None
+    message: str | None = None
+    raw: str | None = None
+
+    enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "timestamp": self.timestamp.isoformat(),
+            "source": self.source,
+            "ip": self.ip,
+            "username": self.username,
+            "command": self.command,
+            "operation": self.operation,
+            "action": self.action,
+            "success": self.success,
+            "status": self.status,
+            "severity_score": self.severity_score,
+            "file_path": self.file_path,
+            "bytes_transferred": self.bytes_transferred,
+            "access_mode": self.access_mode,
+            "pid": self.pid,
+            "message": self.message,
+            "raw": self.raw,
+            "enrichments": self.enrichments.to_dict() if self.enrichments else None,
+        }

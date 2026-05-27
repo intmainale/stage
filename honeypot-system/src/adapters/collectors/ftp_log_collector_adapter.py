@@ -1,52 +1,45 @@
 from pathlib import Path
+import threading
+import time
 from typing import Iterator
 
 from src.ports.outbound.log_collector_port import LogCollector
 from src.domain.exceptions.domain_exceptions import CollectionError
-from config.settings import Settings
-import time
 
 
 class FtpLogCollectorAdapter(LogCollector):
     """
-    Tails FTP logs (vsftpd/proftpd style).
-    Works on Debian 13 typical setups.
+    Tails ProFTPD 1.3.5 logs.
+    The service has CVE-2015-3306.
     """
 
-    DEFAULT_PATH = "/var/log/vsftpd.log"
+    DEFAULT_PATH = "/var/log/extended.log"
 
-    def __init__(self) -> None:
+    def __init__(self, path: str) -> None:
         super().__init__()
-        cfg = Settings.get_instance()
+        self.path = Path(path) if path else Path(self.DEFAULT_PATH)
 
-        self.ftp_log = Path(cfg.get("collectors.ftp.path", self.DEFAULT_PATH))
+    def collect(self, stop_event: threading.Event) -> Iterator[str]:
+        self._L.info(f"FtpLogCollectorAdapter {self.path}: reading from {self.path}")
 
-    def collect(self) -> Iterator[str]:
-        self._L.info("FtpLogCollectorAdapter: reading from %s", self.ftp_log)
-
-        if not self.ftp_log.exists():
-            self._L.warning("FtpLogCollectorAdapter: log not found: %s", self.ftp_log)
+        if not self.path.exists():
+            self._L.warning(f"FtpLogCollectorAdapter {self.path}: log not found: {self.path}")
             return
 
         try:
-            yield from self._tail_file(self.ftp_log)
+            yield from self.tail_file(self.path, stop_event)
 
         except OSError as exc:
-            raise CollectionError(f"FTP collector error: {exc}") from exc
+            raise CollectionError(f"FtpLogCollectorAdapter {self.path}: read error: {exc}") from exc
 
-    def _tail_file(self, path: Path) -> Iterator[str]:
-        """
-        Simple tail -f implementation (thread-friendly).
-        """
+    def tail_file(self, path: Path, stop_event: threading.Event) -> Iterator[str]:
+        """Tails a file and yields new lines as they are written."""
+        with path.open("r", encoding="utf-8", errors="replace") as fh:
+            fh.seek(0, 2)  # Move to end of file
 
-        with path.open("r", encoding="utf-8", errors="replace") as f:
-            f.seek(0, 2)  # jump to end
-
-            while True:
-                line = f.readline()
-
-                if not line:
-                    time.sleep(0.2)
-                    continue
-
-                yield line.strip()
+            while not stop_event.is_set():
+                line = fh.readline()
+                if line:
+                    yield line.strip()
+                else:
+                    time.sleep(0.1)
