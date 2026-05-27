@@ -1,4 +1,5 @@
 from pathlib import Path
+import threading
 
 import pytest
 
@@ -6,33 +7,13 @@ from src.adapters.collectors.ftp_log_collector_adapter import FtpLogCollectorAda
 from src.domain.exceptions.domain_exceptions import CollectionError
 
 
-class DummySettings:
-    def __init__(self, value: str):
-        self._value = value
-
-    def get(self, key: str, default=None):
-        if key == "collectors.ftp.path":
-            return self._value
-        return default
-
-
-def test_collect_returns_empty_when_file_missing(monkeypatch, tmp_path):
-    monkeypatch.setattr(
-        "src.adapters.collectors.ftp_log_collector_adapter.Settings.get_instance",
-        lambda: DummySettings(str(tmp_path / "missing.log")),
-    )
-
-    adapter = FtpLogCollectorAdapter()
-    assert list(adapter.collect()) == []
+def test_collect_returns_empty_when_file_missing(tmp_path):
+    adapter = FtpLogCollectorAdapter(str(tmp_path / "missing.log"))
+    assert list(adapter.collect(threading.Event())) == []
 
 
 def test_tail_file_yields_line_and_stops(monkeypatch, mocker):
-    monkeypatch.setattr(
-        "src.adapters.collectors.ftp_log_collector_adapter.Settings.get_instance",
-        lambda: DummySettings("/tmp/log"),
-    )
-
-    adapter = FtpLogCollectorAdapter()
+    adapter = FtpLogCollectorAdapter("/tmp/log")
     fake_file = mocker.MagicMock()
     fake_file.__enter__.return_value = fake_file
     fake_file.seek.return_value = None
@@ -48,7 +29,7 @@ def test_tail_file_yields_line_and_stops(monkeypatch, mocker):
 
     monkeypatch.setattr("src.adapters.collectors.ftp_log_collector_adapter.time.sleep", fake_sleep)
 
-    generator = adapter._tail_file(Path("/tmp/log"))
+    generator = adapter.tail_file(Path("/tmp/log"), threading.Event())
     assert next(generator) == "ftp line"
     with pytest.raises(StopTail):
         next(generator)
@@ -57,17 +38,13 @@ def test_tail_file_yields_line_and_stops(monkeypatch, mocker):
 def test_collect_wraps_os_errors(tmp_path, monkeypatch):
     log_file = tmp_path / "ftp.log"
     log_file.write_text("", encoding="utf-8")
-    monkeypatch.setattr(
-        "src.adapters.collectors.ftp_log_collector_adapter.Settings.get_instance",
-        lambda: DummySettings(str(log_file)),
-    )
-    adapter = FtpLogCollectorAdapter()
+    adapter = FtpLogCollectorAdapter(str(log_file))
 
-    def raise_os_error(path):
+    def raise_os_error(path, stop_event):
         raise OSError("cannot read")
         yield
 
-    monkeypatch.setattr(adapter, "_tail_file", raise_os_error)
+    monkeypatch.setattr(adapter, "tail_file", raise_os_error)
 
-    with pytest.raises(CollectionError, match="FTP collector error"):
-        list(adapter.collect())
+    with pytest.raises(CollectionError, match="FtpLogCollectorAdapter"):
+        list(adapter.collect(threading.Event()))
