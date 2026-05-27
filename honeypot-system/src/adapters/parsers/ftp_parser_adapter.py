@@ -68,34 +68,61 @@ class FTPParserAdapter(LogParser):
         return event
 
     def _parse_xferlog(self, raw_line: str) -> Optional[FTPEvent]:
-        try:
-            parts = shlex.split(raw_line)
-        except ValueError as exc:
-            raise ParseError(f"FTPParserAdapter: malformed xferlog quoting: {exc}") from exc
+        """
+        Parse ProFTPD xferlog format.
 
-        if len(parts) < 17:
+        Example:
+        Wed May 27 13:55:25 2026 0 host-62-110-23-211.business.telecomitalia.it 0 /home/user/test.txt b _ i r user ftp 0 * c
+        """
+
+        parts = raw_line.split()
+
+        # Expected minimum fields for xferlog
+        # date(5) + transfer_time + host + size + path + type + special + direction
+        # + access_mode + username + service + auth + auth_user + completion
+        if len(parts) < 18:
             return None
 
         try:
-            timestamp = datetime.strptime(" ".join(parts[:5]), XFERLOG_TS_FMT).replace(tzinfo=timezone.utc)
+            timestamp = datetime.strptime(" ".join(parts[:5]), XFERLOG_TS_FMT).replace(
+                tzinfo=timezone.utc
+            )
+
+            transfer_time = parts[5]  # unused for now
+            remote_host = parts[6]
             bytes_transferred = int(parts[7])
-        except ValueError:
+            file_path = parts[8]
+
+            # xferlog fields
+            transfer_type = parts[9]       # b / a
+            special_action_flag = parts[10]
+            direction_code = parts[11]     # i / o
+            access_mode = parts[12]        # r / a / g
+            username = parts[13]
+            service_name = parts[14]       # ftp
+            auth_method = parts[15]
+            authenticated_user = parts[16]
+            completion_status = parts[17]  # c / i
+
+        except (ValueError, IndexError):
             return None
 
-        remote_host = parts[6]
+        # Resolve hostname/IP
         remote_ip = remote_host
-        if not all(octet.isdigit() and 0 <= int(octet) <= 255 for octet in remote_host.split(".")):
+        if not all(
+            octet.isdigit() and 0 <= int(octet) <= 255
+            for octet in remote_host.split(".")
+        ):
             host_match = HOSTNAME_IPV4_RE.search(remote_host)
-            remote_ip = host_match.group("octets").replace("-", ".") if host_match else None
-
-        file_path = parts[8]
-        direction_code = parts[11]
-        access_mode = parts[12]
-        username = parts[13]
-        completion_status = parts[17] if len(parts) > 17 else None
+            remote_ip = (
+                host_match.group("octets").replace("-", ".")
+                if host_match
+                else None
+            )
 
         operation = self.classify_operation(direction_code, None)
         success = completion_status == "c"
+
         action = self.classify_event(
             operation=operation,
             command=None,
@@ -109,7 +136,7 @@ class FTPParserAdapter(LogParser):
             timestamp=timestamp,
             source="ftp-xferlog",
             ip=remote_ip,
-            username=username,
+            username=username if username not in {"*", "-"} else None,
             operation=operation,
             action=action,
             success=success,
