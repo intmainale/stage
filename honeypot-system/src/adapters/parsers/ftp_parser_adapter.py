@@ -1,4 +1,4 @@
-"""Adapter: FTPParserAdapter - parses FTP xferlog and extended log lines."""
+"""Adapter: FTPParserAdapter - parses ProFTPD xferlog and extended.log lines."""
 
 from __future__ import annotations
 
@@ -14,20 +14,14 @@ from src.domain.exceptions.domain_exceptions import ParseError
 
 
 XFERLOG_TS_FMT = "%a %b %d %H:%M:%S %Y"
-EXTENDED_TS_FMT = "%a %b %d %H:%M:%S %Y"
+EXTENDED_TS_FMT = "%d/%b/%Y:%H:%M:%S %z"
 
-EXTENDED_RE = re.compile(
-    r"^(?P<ts>\w{3}\s+\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})"
-    r"(?:\s+\[pid\s+(?P<pid>\d+)\])?"
-    r"(?:\s+\[(?P<user>[^\]]+)\])?"
-    r"\s+(?P<status>OK|FAIL|FTP command|CONNECT|DISCONNECT)"
-    r"(?:\s+(?P<operation>[A-Z_]+))?:\s+(?P<message>.*)$"
+PROFTPD_EXTENDED_RE = re.compile(
+    r'(?P<host>\S+)\s+\S+\s+(?P<user>\S+)\s+\[(?P<ts>[^\]]+)\]\s+'
+    r'"(?P<request>[^"]*)"\s+'
+    r"(?P<status>\d{3}|-)\s+(?P<size>\d+|-)"
 )
-
-CLIENT_RE = re.compile(r'Client\s+"(?P<ip>[^"]+)"')
-QUOTED_RE = re.compile(r'"([^"]*)"')
-BYTES_RE = re.compile(r"(?P<bytes>\d+)\s+bytes\b")
-COMMAND_RE = re.compile(r'"(?P<command>[A-Z]{3,4})(?:\s+(?P<argument>.*))?"')
+HOSTNAME_IPV4_RE = re.compile(r"(?<!\d)(?P<octets>\d{1,3}[-.]\d{1,3}[-.]\d{1,3}[-.]\d{1,3})(?!\d)")
 
 SUSPICIOUS_PATH_PATTERNS = {
     "../",
@@ -47,12 +41,13 @@ SUSPICIOUS_PATH_PATTERNS = {
 }
 
 WRITE_COMMANDS = {"STOR", "STOU", "APPE", "MKD", "RMD", "DELE", "RNFR", "RNTO", "SITE", "CHMOD"}
-READ_COMMANDS = {"RETR", "LIST", "NLST", "MLSD", "SIZE", "MDTM", "PWD", "CWD"}
+READ_COMMANDS = {"RETR", "LIST", "NLST", "MLSD", "SIZE", "MDTM", "PWD", "CWD", "FEAT"}
 AUTH_COMMANDS = {"USER", "PASS", "ACCT", "AUTH"}
+SESSION_COMMANDS = {"TYPE", "PASV", "PORT", "QUIT", "LANG", "OPTS", "OPTS_UTF8", "OPTS_MLST"}
 
 
 class FTPParserAdapter(LogParser):
-    """Parses FTP xferlog and common extended FTP daemon logs."""
+    """Parses ProFTPD 1.3.5 xferlog and extended.log lines."""
 
     DEFAULT_PATH = "/var/log/vsftpd.log"
 
@@ -65,8 +60,9 @@ class FTPParserAdapter(LogParser):
         if not raw_line:
             return None
 
-        event = self._parse_xferlog(raw_line)
-        if event is None:
+        if "xferlog" in self.path:
+            event = self._parse_xferlog(raw_line)
+        else:
             event = self._parse_extended(raw_line)
 
         return event
@@ -87,6 +83,11 @@ class FTPParserAdapter(LogParser):
             return None
 
         remote_host = parts[6]
+        remote_ip = remote_host
+        if not all(octet.isdigit() and 0 <= int(octet) <= 255 for octet in remote_host.split(".")):
+            host_match = HOSTNAME_IPV4_RE.search(remote_host)
+            remote_ip = host_match.group("octets").replace("-", ".") if host_match else None
+
         file_path = parts[8]
         direction_code = parts[11]
         access_mode = parts[12]
@@ -107,7 +108,7 @@ class FTPParserAdapter(LogParser):
         return FTPEvent(
             timestamp=timestamp,
             source="ftp-xferlog",
-            ip=remote_host,
+            ip=remote_ip,
             username=username,
             operation=operation,
             action=action,
@@ -121,64 +122,58 @@ class FTPParserAdapter(LogParser):
         )
 
     def _parse_extended(self, raw_line: str) -> Optional[FTPEvent]:
-        match = EXTENDED_RE.match(raw_line)
+        match = PROFTPD_EXTENDED_RE.match(raw_line)
         if not match:
             return None
 
         try:
-            timestamp = datetime.strptime(match.group("ts"), EXTENDED_TS_FMT).replace(tzinfo=timezone.utc)
+            timestamp = datetime.strptime(match.group("ts"), EXTENDED_TS_FMT)
         except ValueError as exc:
-            raise ParseError(f"FTPParserAdapter: bad extended timestamp: {exc}") from exc
+            raise ParseError(f"FTPParserAdapter: bad ProFTPD extended timestamp: {exc}") from exc
 
+        request = match.group("request").strip()
+        command, _, raw_argument = request.partition(" ")
+        command = command.upper() if command else None
+        argument = raw_argument if raw_argument and raw_argument not in {"-", "*"} else None
+
+        file_path = self.extract_file_path(command, argument)
         status = match.group("status")
-        operation = match.group("operation") or status
-        message = match.group("message")
-        username = self._empty_to_none(match.group("user"))
-        pid = int(match.group("pid")) if match.group("pid") else None
-
-        ip_match = CLIENT_RE.search(message)
-        quoted = QUOTED_RE.findall(message)
-        bytes_match = BYTES_RE.search(message)
-
-        command = None
-        file_path = None
-        if status == "FTP command":
-            command_match = COMMAND_RE.search(message)
-            if command_match:
-                command = command_match.group("command")
-                file_path = self._empty_to_none(command_match.group("argument"))
-        elif len(quoted) > 1:
-            file_path = quoted[1]
-
-        if operation in {"LOGIN", "CONNECT", "DISCONNECT"}:
-            file_path = None
-
-        success = self.classify_success(status, operation)
-        normalized_operation = self.classify_operation(None, command or operation)
+        status = status if status != "-" else None
+        success = self.classify_status_success(status)
+        operation = self.classify_operation(None, command)
+        username = match.group("user")
+        username = username if username not in {"-", "*"} else None
         action = self.classify_event(
-            operation=normalized_operation,
+            operation=operation,
             command=command,
             success=success,
             username=username,
             file_path=file_path,
             access_mode=None,
         )
+        size = match.group("size")
+        bytes_transferred = int(size) if size.isdigit() else None
+
+        remote_host = match.group("host")
+        remote_ip = remote_host
+        if not all(octet.isdigit() and 0 <= int(octet) <= 255 for octet in remote_host.split(".")):
+            host_match = HOSTNAME_IPV4_RE.search(remote_host)
+            remote_ip = host_match.group("octets").replace("-", ".") if host_match else None
 
         return FTPEvent(
             timestamp=timestamp,
             source="ftp-extended",
-            ip=ip_match.group("ip") if ip_match else None,
+            ip=remote_ip,
             username=username,
             command=command,
-            operation=normalized_operation,
+            operation=operation,
             action=action,
             success=success,
             status=status,
             severity_score=self.classify_severity(action),
             file_path=file_path,
-            bytes_transferred=int(bytes_match.group("bytes")) if bytes_match else None,
-            pid=pid,
-            message=message,
+            bytes_transferred=bytes_transferred,
+            message=request,
             raw=raw_line,
         )
 
@@ -193,25 +188,27 @@ class FTPParserAdapter(LogParser):
             return "delete"
         if value in {"LOGIN", "USER", "PASS", "AUTH", "ACCT"}:
             return "login"
-        if value in {"CONNECT", "DISCONNECT"}:
+        if value in {"CONNECT", "DISCONNECT", "QUIT"}:
             return value.lower()
         if value in WRITE_COMMANDS:
             return "write_command"
         if value in READ_COMMANDS:
             return "read_command"
+        if value in SESSION_COMMANDS:
+            return "session"
         if value:
             return "command"
         return "transfer"
 
     @staticmethod
-    def classify_success(status: str, operation: str | None) -> bool | None:
-        if status == "OK":
-            return True
-        if status == "FAIL":
-            return False
-        if status in {"CONNECT", "DISCONNECT", "FTP command"}:
+    def classify_status_success(status: str | None) -> bool | None:
+        if status is None:
             return None
-        return None
+        try:
+            status_code = int(status)
+        except ValueError:
+            return None
+        return 200 <= status_code < 400
 
     @staticmethod
     def classify_event(
@@ -242,6 +239,10 @@ class FTPParserAdapter(LogParser):
             return "file_download"
         if operation == "delete":
             return "file_delete"
+        if operation == "session":
+            return "session"
+        if operation == "quit":
+            return "disconnect"
         if access_mode == "a" or normalized_user in {"anonymous", "ftp"}:
             return "anonymous_activity"
         if operation == "read_command":
@@ -261,12 +262,19 @@ class FTPParserAdapter(LogParser):
             "file_download": 2,
             "anonymous_activity": 2,
             "recon": 2,
+            "session": 1,
+            "disconnect": 1,
             "ftp_activity": 1,
         }
         return severity_mapping.get(action, 1)
 
     @staticmethod
-    def _empty_to_none(value: str | None) -> str | None:
-        if value in {None, "", "-", "*"}:
+    def extract_file_path(command: str | None, argument: str | None) -> str | None:
+        if not argument:
             return None
-        return value
+        if command in {"USER", "PASS", "TYPE", "PASV", "PORT", "LANG", "OPTS", "OPTS_UTF8", "OPTS_MLST"}:
+            return None
+        if command == "MFMT":
+            parts = argument.split(maxsplit=1)
+            return parts[1] if len(parts) == 2 else None
+        return argument
