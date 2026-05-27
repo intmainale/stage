@@ -4,6 +4,7 @@ Outbound port — defines the contract every log-collector adapter must satisfy.
 """
 
 from abc import ABC, abstractmethod
+import threading
 from typing import Iterator
 
 from src.infrastructure.logger import Logger
@@ -19,7 +20,7 @@ class LogCollector(ABC):
         self._L: Logger = Logger.get_instance()
 
     @abstractmethod
-    def collect(self) -> Iterator[str]:
+    def collect(self, stop_event: threading.Event) -> Iterator[str]:
         """
         Yield raw log lines one at a time.
 

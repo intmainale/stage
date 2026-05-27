@@ -65,7 +65,7 @@ class LogCollectorFactory(ABC):
         self._L: Logger = Logger.get_instance()
 
     @abstractmethod
-    def create_log_collector(self, collector_type: str) -> LogCollector:
+    def create_log_collector(self, collector_type: str, path: str) -> LogCollector:
         """Instantiate and return the requested LogCollector."""
         pass
 

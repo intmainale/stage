@@ -19,6 +19,7 @@ from src.ports.outbound.log_collector_port import LogCollector
 from src.adapters.collectors.apache_log_collector_adapter import ApacheLogCollectorAdapter
 from src.adapters.collectors.bash_log_collector_adapter import BashLogCollectorAdapter
 from src.adapters.collectors.auditd_log_collector_adapter import AuditdLogCollectorAdapter
+from src.adapters.collectors.ftp_log_collector_adapter import FtpLogCollectorAdapter
 
 class CollectorThread(threading.Thread):
 
@@ -66,6 +67,12 @@ class CollectorThread(threading.Thread):
                         event = self._pipeline.parsers["auditd"].parse(raw_line)
                     except ParseError as exc:
                         self._L.error("Parse error [%s]: %s", "auditd", exc)
+
+                elif isinstance(self._collector, FtpLogCollectorAdapter):
+                    try:
+                        event = self._pipeline.parsers["ftp"].parse(raw_line)
+                    except ParseError as exc:
+                        self._L.error("Parse error [%s]: %s", "ftp", exc)
                 
                 else:
                     raise ParseError(f"No parser found for collector type: {type(self._collector).__name__}")
