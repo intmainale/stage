@@ -18,7 +18,7 @@ class ApacheLogCollectorAdapter(LogCollector):
         super().__init__()
         self.path = Path(path) if path else Path(self.DEFAULT_PATH)
         
-    def collect(self, stop_event: threading.Event) -> Iterator[str]:
+    def collect(self, stop_event: threading.Event) -> Iterator[tuple[str, str]]:
         self._L.info(f"ApacheLogCollectorAdapter {self.path}: reading from {self.path}")
         if not self.path.exists():
             self._L.warning(f"ApacheLogCollectorAdapter {self.path}: log not found: {self.path}")
@@ -29,7 +29,7 @@ class ApacheLogCollectorAdapter(LogCollector):
         except OSError as exc:
             raise CollectionError(f"ApacheLogCollectorAdapter {self.path}: read error: {exc}") from exc
 
-    def tail_file(self, path: Path, stop_event: threading.Event) -> Iterator[str]:
+    def tail_file(self, path: Path, stop_event: threading.Event) -> Iterator[tuple[str, str]]:
         """Tails a file and yields new lines as they are written."""
         with path.open("r", encoding="utf-8", errors="replace") as fh:
             fh.seek(0, 2)  # Move to end of file
@@ -37,6 +37,6 @@ class ApacheLogCollectorAdapter(LogCollector):
             while not stop_event.is_set():
                 line = fh.readline()
                 if line:
-                    yield line.strip()
+                    yield line.strip(), str(path)
                 else:
                     time.sleep(0.1)

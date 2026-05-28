@@ -22,11 +22,7 @@ class AuditdParserAdapter(LogParser):
 
     DEFAULT_PATH = "/var/log/audit/audit.log"
 
-    def __init__(self, path: str) -> None:
-        super().__init__()
-        self.path = Path(path) if path else Path(self.DEFAULT_PATH)
-
-    def parse(self, raw_line: str) -> Optional[AuditdExecEvent]:
+    def parse(self, raw_line: str, path: str) -> Optional[AuditdExecEvent]:
         """
         Example input:
             type=SYSCALL msg=audit(1716112345.123:456):

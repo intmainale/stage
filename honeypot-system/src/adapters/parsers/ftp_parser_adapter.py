@@ -51,19 +51,17 @@ class FTPParserAdapter(LogParser):
 
     DEFAULT_PATH = "/var/log/vsftpd.log"
 
-    def __init__(self, path: str) -> None:
-        super().__init__()
-        self.path = Path(path) if path else Path(self.DEFAULT_PATH)
-
-    def parse(self, raw_line: str) -> Optional[FTPEvent]:
+    def parse(self, raw_line: str, path: str) -> Optional[FTPEvent]:
         raw_line = raw_line.strip()
         if not raw_line:
             return None
-
-        if "xferlog" in self.path:
+        
+        if "xferlog" in path.lower():
             event = self._parse_xferlog(raw_line)
-        else:
+        elif "extended" in path.lower():
             event = self._parse_extended(raw_line)
+        else:
+            raise ParseError(f"FTPParserAdapter: unknown log format for path: {path}")
 
         return event
 

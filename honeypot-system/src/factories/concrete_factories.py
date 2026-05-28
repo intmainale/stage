@@ -53,12 +53,12 @@ class ConcreteLogParserFactory(LogParserFactory):
         "auditd":         AuditdParserAdapter,
     }
 
-    def create_log_parser(self, parser_type: str, path: str) -> LogParser:
+    def create_log_parser(self, parser_type: str) -> LogParser:
         cls = self._REGISTRY.get(parser_type.lower())
         if cls is None:
             raise ConfigurationError(f"Unknown parser type: '{parser_type}'")
         self._L.debug("Creating parser: %s", parser_type)
-        return cls(path)
+        return cls()
 
 
 class ConcretePublisherFactory(PublisherFactory):

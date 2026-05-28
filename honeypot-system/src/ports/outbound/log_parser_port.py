@@ -20,9 +20,9 @@ class LogParser(ABC):
         self._L: Logger = Logger.get_instance()
 
     @abstractmethod
-    def parse(self, raw_line: str) -> Optional[Event]:
+    def parse(self, raw_line: str, path: str) -> Optional[Event]:
         """
-        Parse *raw_line* and return a Event, or None if the line is
+        Parse *raw_line* based on the source path and return a Event, or None if the line is
         not recognised / should be skipped.
 
         Raises ParseError on malformed input that should halt processing.

@@ -43,8 +43,8 @@ class CollectorThread(threading.Thread):
         self._L.info("CollectorThread started: %s", collector_name)
 
         try:
-            for raw_line in self._collector.collect(self._stop_event):
-                
+            for raw_line, path in self._collector.collect(self._stop_event):
+
                 if self._stop_event.is_set():
                     self._L.info("CollectorThread stopping: %s", collector_name)
                     break
@@ -52,25 +52,25 @@ class CollectorThread(threading.Thread):
 
                 if isinstance(self._collector, ApacheLogCollectorAdapter):
                     try:
-                        event = self._pipeline.parsers["apache"].parse(raw_line)
+                        event = self._pipeline.parsers["apache"].parse(raw_line, path)
                     except ParseError as exc:
                         self._L.error("Parse error [%s]: %s", "apache", exc)
 
                 elif isinstance(self._collector, BashLogCollectorAdapter):
                     try:
-                        event = self._pipeline.parsers["bash"].parse(raw_line)
+                        event = self._pipeline.parsers["bash"].parse(raw_line, path)
                     except ParseError as exc:
                         self._L.error("Parse error [%s]: %s", "bash", exc)
 
                 elif isinstance(self._collector, AuditdLogCollectorAdapter):
                     try:
-                        event = self._pipeline.parsers["auditd"].parse(raw_line)
+                        event = self._pipeline.parsers["auditd"].parse(raw_line, path)
                     except ParseError as exc:
                         self._L.error("Parse error [%s]: %s", "auditd", exc)
 
                 elif isinstance(self._collector, FtpLogCollectorAdapter):
                     try:
-                        event = self._pipeline.parsers["ftp"].parse(raw_line)
+                        event = self._pipeline.parsers["ftp"].parse(raw_line, path)
                     except ParseError as exc:
                         self._L.error("Parse error [%s]: %s", "ftp", exc)
                 

@@ -21,7 +21,7 @@ class AuditdLogCollectorAdapter(LogCollector):
         super().__init__()
         self._path = Path(path) if path else Path(self.DEFAULT_PATH)
 
-    def collect(self, stop_event: threading.Event) -> Iterator[str]:
+    def collect(self, stop_event: threading.Event) -> Iterator[tuple[str, str]]:
         self._L.info(f"AuditdLogCollectorAdapter {self._path}: reading from {self._path}")
         if not self._path.exists():
             self._L.warning(f"AuditdLogCollectorAdapter {self._path}: file not found: {self._path}")
@@ -33,7 +33,7 @@ class AuditdLogCollectorAdapter(LogCollector):
         except OSError as exc:
             raise CollectionError(f"AuditdLogCollectorAdapter {self._path}: read error: {exc}") from exc
 
-    def tail_file(self, path: Path, stop_event: threading.Event) -> Iterator[str]:
+    def tail_file(self, path: Path, stop_event: threading.Event) -> Iterator[tuple[str, str]]:
         """Tails a file and yields new lines as they are written."""
         with path.open("r", encoding="utf-8", errors="replace") as fh:
             fh.seek(0, 2)  # Move to end of file
@@ -41,6 +41,6 @@ class AuditdLogCollectorAdapter(LogCollector):
             while not stop_event.is_set():
                 line = fh.readline()
                 if line:
-                    yield line.strip()
+                    yield line.strip(), str(path)
                 else:
                     time.sleep(0.1)

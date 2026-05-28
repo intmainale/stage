@@ -20,9 +20,9 @@ class LogCollector(ABC):
         self._L: Logger = Logger.get_instance()
 
     @abstractmethod
-    def collect(self, stop_event: threading.Event) -> Iterator[str]:
+    def collect(self, stop_event: threading.Event) -> Iterator[tuple[str, str]]:
         """
-        Yield raw log lines one at a time.
+        Yield raw log lines one at a time along with their source path.
 
         Raises CollectionError on unrecoverable read failures.
         """

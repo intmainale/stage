@@ -43,12 +43,8 @@ class BashParserAdapter(LogParser):
     """Parses bash service events from bash history"""
 
     DEFAULT_PATH = "/root/.bash_history"
-
-    def __init__(self, path: str) -> None:
-        super().__init__()
-        self._path = Path(path) if path else Path(self.DEFAULT_PATH)
         
-    def parse(self, raw_line: str) -> Optional[BashEvent]:
+    def parse(self, raw_line: str, path: str) -> Optional[BashEvent]:
         """
         Example input:
             2026-05-15T10:42:11 path=/home/alex user=alex groups=admin,docker,sudo 1000 1231 cmd="ls -la"

@@ -20,6 +20,7 @@ def main() -> None:
         name: cfg.get(f"collectors.{name}", {})
         for name in cfg.get("pipeline.collectors", [])
     }
+    
     publishers = cfg.get("pipeline.publishers", ["mqtt"])
     enrichers  = cfg.get("pipeline.enrichers",  [])
 
