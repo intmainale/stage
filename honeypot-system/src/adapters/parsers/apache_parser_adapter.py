@@ -24,9 +24,14 @@ ACCESS_LOG_RE = re.compile(
 ERROR_LOG_RE = re.compile(
     r"\[(?P<ts>[^\]]+)\]"
     r"\s+\[(?P<module>[^\]]+)\]"
-    r"(?:\s+\[pid\s+(?P<pid>\d+)\])?"
+    r"(?:\s+\[pid\s+(?P<pid>[^\]]+)\])?"
+    r"(?:\s+\((?P<errno>\d+)\)(?P<error_text>[^:]+):)?"
     r"(?:\s+\[client\s+(?P<client>[^\]]+)\])?"
     r"\s+(?P<message>.+)"
+)
+
+CLIENT_IP_RE = re.compile(
+    r"(?P<ip>(?:\d{1,3}\.){3}\d{1,3}|[a-fA-F0-9:]+)"
 )
 
 HIGH_RISK_PATTERNS = {
@@ -170,7 +175,10 @@ class ApacheParserAdapter(LogParser):
         ip = None
 
         if client:
-            ip = client.split(":")[0].strip()
+            ip_match = CLIENT_IP_RE.search(client)
+
+            if ip_match:
+                ip = ip_match.group("ip")
 
         action = self.classify_error_event(message)
 

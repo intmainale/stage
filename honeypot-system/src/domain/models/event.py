@@ -138,9 +138,11 @@ class ApacheEvent(EnrichableEvent):
     def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp.isoformat(),
+            "source": self.source,
             "ip": self.ip,
             "user": self.user,
             "method": self.method,
+            "success": self.success,
             "path": self.path,
             "status": self.status,
             "size": self.size,
