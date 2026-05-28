@@ -2,15 +2,18 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-# ── Enrichments ────────────────────────────────────────────────────────────────────
+
+# ── Enrichments ────────────────────────────────────────────────────────────────
 
 @dataclass
 class VirusTotalInfo:
     malicious: int | None = None
     suspicious: int | None = None
     harmless: int | None = None
-
     reputation: int | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.__dict__
 
 
 @dataclass
@@ -19,10 +22,11 @@ class ShodanInfo:
     os: str | None = None
     latitude: float | None = None
     longitude: float | None = None
-    
     open_ports: list[int] = field(default_factory=list)
-
     tags: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.__dict__
 
 
 @dataclass
@@ -30,49 +34,66 @@ class AbuseIPDBInfo:
     abuse_confidence_score: int | None = None
 
     country: str | None = None
-    isp: str | None = None
-    usage_type: str | None = None
-
-    total_reports: int | None = None
-
-
-@dataclass
-class GeoInfo:
-    country: str | None = None
     region: str | None = None
     city: str | None = None
 
     latitude: float | None = None
     longitude: float | None = None
 
+    isp: str | None = None
+    usage_type: str | None = None
+    total_reports: int | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.__dict__
+
 
 @dataclass
 class EnrichmentBundle:
-    geolocation: GeoInfo | None = None
-
     virustotal: VirusTotalInfo | None = None
     shodan: ShodanInfo | None = None
     abuseipdb: AbuseIPDBInfo | None = None
 
-    def to_dict(self):
-        return {
-            "geolocation": self.geolocation.__dict__ if self.geolocation else None,
-            "virustotal": self.virustotal.__dict__ if self.virustotal else None,
-            "shodan": self.shodan.__dict__ if self.shodan else None,
-            "abuseipdb": self.abuseipdb.__dict__ if self.abuseipdb else None,
-        }
 
-# ── Main Events ─────────────────────────────────────────────────────────────────────
+# ── Main Events ────────────────────────────────────────────────────────────────
 
 @dataclass
 class Event:
     source: str = "generic"
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "timestamp": self.timestamp.isoformat(),
+            "source": self.source,
+        }
+
 
 @dataclass
 class EnrichableEvent(Event):
     ip: str | None = None
-    enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
+    enrichments: EnrichmentBundle = field(
+        default_factory=EnrichmentBundle
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+
+        data["ip"] = self.ip
+
+        if self.enrichments.virustotal:
+            data.update(self.enrichments.virustotal.to_dict())
+
+        if self.enrichments.shodan:
+            data.update(self.enrichments.shodan.to_dict())
+
+        if self.enrichments.abuseipdb:
+            data.update(self.enrichments.abuseipdb.to_dict())
+
+        return data
+
 
 @dataclass
 class AuditdExecEvent(Event):
@@ -85,16 +106,14 @@ class AuditdExecEvent(Event):
 
     exe: str | None = None
     comm: str | None = None
-
     success: bool | None = None
-
     syscall: str | None = None
-
     raw: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "timestamp": self.timestamp,
+        data = super().to_dict()
+
+        data.update({
             "event_id": self.event_id,
             "pid": self.pid,
             "ppid": self.ppid,
@@ -104,54 +123,68 @@ class AuditdExecEvent(Event):
             "success": self.success,
             "syscall": self.syscall,
             "raw": self.raw,
-        }
+        })
+
+        return data
+
 
 @dataclass
 class BashEvent(Event):
     source: str = "bash"
+
     cmd: str | None = None
     action: str | None = None
     severity_score: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = super().to_dict()
+
+        data.update({
             "cmd": self.cmd,
             "action": self.action,
             "severity_score": self.severity_score,
-        }
+        })
+
+        return data
+
 
 @dataclass
 class ApacheEvent(EnrichableEvent):
     source: str = "apache"
+
     user: str | None = None
     action: str | None = None
     success: bool | None = None
     severity_score: int | None = None
+
     method: str | None = None
+    operation: str | None = None
     path: str | None = None
     status: int | None = None
+
     message: str | None = None
     size: int | None = None
     raw: str | None = None
-    enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
- 
+
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "timestamp": self.timestamp.isoformat(),
-            "source": self.source,
-            "ip": self.ip,
+        data = super().to_dict()
+
+        data.update({
             "user": self.user,
-            "method": self.method,
+            "action": self.action,
             "success": self.success,
+            "severity_score": self.severity_score,
+            "method": self.method,
+            "operation": self.operation,
             "path": self.path,
             "status": self.status,
-            "size": self.size,
-            "enrichments": self.enrichments.to_dict() if self.enrichments else None,
-            "action": self.action,
-            "severity_score": self.severity_score,
             "message": self.message,
+            "size": self.size,
             "raw": self.raw,
-        }
+        })
+
+        return data
+
 
 @dataclass
 class FTPEvent(EnrichableEvent):
@@ -174,13 +207,10 @@ class FTPEvent(EnrichableEvent):
     message: str | None = None
     raw: str | None = None
 
-    enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
-
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "timestamp": self.timestamp.isoformat(),
-            "source": self.source,
-            "ip": self.ip,
+        data = super().to_dict()
+
+        data.update({
             "username": self.username,
             "command": self.command,
             "operation": self.operation,
@@ -194,5 +224,6 @@ class FTPEvent(EnrichableEvent):
             "pid": self.pid,
             "message": self.message,
             "raw": self.raw,
-            "enrichments": self.enrichments.to_dict() if self.enrichments else None,
-        }
+        })
+
+        return data
