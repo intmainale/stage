@@ -49,9 +49,19 @@ class BashParserAdapter(LogParser):
         Example input:
             2026-05-15T10:42:11 path=/home/alex user=alex groups=admin,docker,sudo 1000 1231 cmd="ls -la"
         """
+        try:
+            raw_line = raw_line.strip()
+            if not raw_line:
+                return None
+
+            return self._parse_bash_event(raw_line)
+
+        except ParseError:
+            raise
+        except Exception as exc:
+            raise ParseError(f"[BashParserAdapter] unexpected error: {exc}") from exc
         
-        if not raw_line.strip():
-            raise ParseError("BashParserAdapter: empty line")
+    def _parse_bash_event(self, raw_line: str) -> Optional[BashEvent]:
 
         """match = _PATTERN.search(raw_line)
         if not match:

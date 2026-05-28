@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 
 
@@ -60,13 +59,11 @@ class EnrichmentBundle:
 @dataclass
 class Event:
     source: str = "generic"
-    timestamp: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    timestamp: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "timestamp": self.timestamp.isoformat(),
+            "timestamp": self.timestamp,
             "source": self.source,
         }
 

@@ -15,6 +15,7 @@ from src.domain.exceptions.domain_exceptions import ParseError
 
 XFERLOG_TS_FMT = "%a %b %d %H:%M:%S %Y"
 EXTENDED_TS_FMT = "%d/%b/%Y:%H:%M:%S %z"
+OUTPUT_TS_FMT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 PROFTPD_EXTENDED_RE = re.compile(
     r'(?P<host>\S+)\s+\S+\s+(?P<user>\S+)\s+\[(?P<ts>[^\]]+)\]\s+'
@@ -22,6 +23,23 @@ PROFTPD_EXTENDED_RE = re.compile(
     r"(?P<status>\d{3}|-)\s+(?P<size>\d+|-)"
 )
 HOSTNAME_IPV4_RE = re.compile(r"(?<!\d)(?P<octets>\d{1,3}[-.]\d{1,3}[-.]\d{1,3}[-.]\d{1,3})(?!\d)")
+
+PROFTPD_XFERLOG_RE = re.compile(
+    r"^(?P<ts>\w{3}\s+\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})\s+"
+    r"(?P<transfer_time>\d+)\s+"
+    r"(?P<host>\S+)\s+"
+    r"(?P<size>\d+)\s+"
+    r"(?P<path>\S+)\s+"
+    r"(?P<type>[ba])\s+"
+    r"(?P<special>\S)\s+"
+    r"(?P<direction>[iod])\s+"
+    r"(?P<access>[rag])\s+"
+    r"(?P<user>\S+)\s+"
+    r"(?P<service>\S+)\s+"
+    r"(?P<auth>\S+)\s+"
+    r"(?P<auth_user>\S+)\s+"
+    r"(?P<status>[ci])$"
+)
 
 SUSPICIOUS_PATH_PATTERNS = {
     "../",
@@ -52,71 +70,51 @@ class FTPParserAdapter(LogParser):
     DEFAULT_PATH = "/var/log/vsftpd.log"
 
     def parse(self, raw_line: str, path: str) -> Optional[FTPEvent]:
-        raw_line = raw_line.strip()
-        if not raw_line:
-            return None
-        
-        if "xferlog" in path.lower():
-            event = self._parse_xferlog(raw_line)
-        elif "extended" in path.lower():
-            event = self._parse_extended(raw_line)
-        else:
-            raise ParseError(f"FTPParserAdapter: unknown log format for path: {path}")
-
-        return event
+        try:
+            raw_line = raw_line.strip()
+            if not raw_line:
+                return None
+            
+            if "xferlog" in path.lower():
+                return self._parse_xferlog(raw_line)
+            
+            elif "extended" in path.lower():
+                return self._parse_extended(raw_line)
+            
+            else:
+                raise ParseError(f"[FTPParserAdapter] unknown log format for path: {path}")
+       
+        except ParseError:
+            raise
+        except Exception as exc:
+            raise ParseError(f"[FTPParserAdapter] unexpected error: {exc}") from exc
 
     def _parse_xferlog(self, raw_line: str) -> Optional[FTPEvent]:
-        """
-        Parse ProFTPD xferlog format.
-
-        Example:
-        Wed May 27 13:55:25 2026 0 host-62-110-23-211.business.telecomitalia.it 0 /home/user/test.txt b _ i r user ftp 0 * c
-        """
-
-        parts = raw_line.split()
-
-        # Expected minimum fields for xferlog
-        # date(5) + transfer_time + host + size + path + type + special + direction
-        # + access_mode + username + service + auth + auth_user + completion
-        if len(parts) < 18:
-            return None
+        match = PROFTPD_XFERLOG_RE.match(raw_line)
+        if not match:
+            raise ParseError("[FTPParserAdapter] invalid xferlog format")
 
         try:
-            timestamp = datetime.strptime(" ".join(parts[:5]), XFERLOG_TS_FMT).replace(
-                tzinfo=timezone.utc
-            )
+            dt = datetime.strptime(match.group("ts"), XFERLOG_TS_FMT).replace(tzinfo=timezone.utc)
+            timestamp = dt.astimezone(timezone.utc).strftime(OUTPUT_TS_FMT)
 
-            transfer_time = parts[5]  # unused for now
-            remote_host = parts[6]
-            bytes_transferred = int(parts[7])
-            file_path = parts[8]
+        except Exception as exc:
+            raise ParseError("[FTPParserAdapter] invalid xferlog timestamp: {exc}") from exc
 
-            # xferlog fields
-            transfer_type = parts[9]       # b / a
-            special_action_flag = parts[10]
-            direction_code = parts[11]     # i / o
-            access_mode = parts[12]        # r / a / g
-            username = parts[13]
-            service_name = parts[14]       # ftp
-            auth_method = parts[15]
-            authenticated_user = parts[16]
-            completion_status = parts[17]  # c / i
+        remote_host = match.group("host")
+        bytes_transferred = int(match.group("size"))
+        file_path = match.group("path")
 
-        except (ValueError, IndexError):
-            return None
+        direction_code = match.group("direction")
+        access_mode = match.group("access")
+        username = match.group("user")
+        completion_status = match.group("status")
 
-        # Resolve hostname/IP
+        # IP resolution
         remote_ip = remote_host
-        if not all(
-            octet.isdigit() and 0 <= int(octet) <= 255
-            for octet in remote_host.split(".")
-        ):
+        if not all(o.isdigit() and 0 <= int(o) <= 255 for o in remote_host.split(".")):
             host_match = HOSTNAME_IPV4_RE.search(remote_host)
-            remote_ip = (
-                host_match.group("octets").replace("-", ".")
-                if host_match
-                else None
-            )
+            remote_ip = host_match.group("octets").replace("-", ".") if host_match else None
 
         operation = self.classify_operation(direction_code, None)
         success = completion_status == "c"
@@ -130,7 +128,9 @@ class FTPParserAdapter(LogParser):
             access_mode=access_mode,
         )
 
-        return FTPEvent(
+        severity_score = self.classify_severity(action)
+
+        ftp_event = FTPEvent(
             timestamp=timestamp,
             source="ftp-xferlog",
             ip=remote_ip,
@@ -139,22 +139,26 @@ class FTPParserAdapter(LogParser):
             action=action,
             success=success,
             status=completion_status,
-            severity_score=self.classify_severity(action),
+            severity_score=severity_score,
             file_path=file_path,
             bytes_transferred=bytes_transferred,
             access_mode=access_mode,
             raw=raw_line,
         )
 
+        return ftp_event
+
     def _parse_extended(self, raw_line: str) -> Optional[FTPEvent]:
         match = PROFTPD_EXTENDED_RE.match(raw_line)
         if not match:
-            return None
-
+            raise ParseError("[FTPParserAdapter] invalid extended log format")
+        
         try:
-            timestamp = datetime.strptime(match.group("ts"), EXTENDED_TS_FMT)
-        except ValueError as exc:
-            raise ParseError(f"FTPParserAdapter: bad ProFTPD extended timestamp: {exc}") from exc
+            dt = datetime.strptime(match.group("ts"), EXTENDED_TS_FMT)
+            timestamp = dt.astimezone(timezone.utc).strftime(OUTPUT_TS_FMT)
+
+        except Exception as exc:
+            raise ParseError(f"[FTPParserAdapter] invalid timestamp format in extended log: {exc}") from exc
 
         request = match.group("request").strip()
         command, _, raw_argument = request.partition(" ")
@@ -185,7 +189,9 @@ class FTPParserAdapter(LogParser):
             host_match = HOSTNAME_IPV4_RE.search(remote_host)
             remote_ip = host_match.group("octets").replace("-", ".") if host_match else None
 
-        return FTPEvent(
+        severity_score = self.classify_severity(action)
+
+        ftp_event = FTPEvent(
             timestamp=timestamp,
             source="ftp-extended",
             ip=remote_ip,
@@ -195,12 +201,14 @@ class FTPParserAdapter(LogParser):
             action=action,
             success=success,
             status=status,
-            severity_score=self.classify_severity(action),
+            severity_score=severity_score,
             file_path=file_path,
             bytes_transferred=bytes_transferred,
             message=request,
             raw=raw_line,
         )
+
+        return ftp_event
 
     @staticmethod
     def classify_operation(direction: str | None, command_or_operation: str | None) -> str:
@@ -229,10 +237,8 @@ class FTPParserAdapter(LogParser):
     def classify_status_success(status: str | None) -> bool | None:
         if status is None:
             return None
-        try:
-            status_code = int(status)
-        except ValueError:
-            return None
+        
+        status_code = int(status)
         return 200 <= status_code < 400
 
     @staticmethod

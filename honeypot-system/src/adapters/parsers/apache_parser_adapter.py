@@ -1,7 +1,7 @@
 """Adapter: ApacheParserAdapter — parses Apache access and error logs."""
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from src.ports.outbound.log_parser_port import LogParser
@@ -11,6 +11,7 @@ from src.domain.exceptions.domain_exceptions import ParseError
 
 ACCESS_TS_FMT = "%d/%b/%Y:%H:%M:%S %z"
 ERROR_TS_FMT = "%a %b %d %H:%M:%S.%f %Y"
+OUTPUT_TS_FMT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 ACCESS_LOG_RE = re.compile(
     r"(?P<ip>\S+)"
@@ -90,34 +91,40 @@ class ApacheParserAdapter(LogParser):
     DEFAULT_PATH = "/var/log/apache2/access.log"
 
     def parse(self, raw_line: str, path: str) -> Optional[ApacheEvent]:
-        raw_line = raw_line.strip()
+        try:
+            raw_line = raw_line.strip()
+            if not raw_line:
+                return None
 
-        if not raw_line:
-            return None
+            if "access" in path.lower():
+                return self._parse_access_log(raw_line)
 
-        if "access" in path.lower():
-            return self._parse_access_log(raw_line)
+            elif "error" in path.lower():
+                return self._parse_error_log(raw_line)
 
-        elif "error" in path.lower():
-            return self._parse_error_log(raw_line)
-
-        else:
-            raise ParseError(f"ApacheParserAdapter: unknown log format for path: {path}")
+            else:
+                raise ParseError(f"[ApacheParserAdapter] unknown log format for path: {path}")
+        
+        except ParseError:
+            raise
+        except Exception as exc:
+            raise ParseError(f"[ApacheParserAdapter] unexpected error: {exc}") from exc
 
     def _parse_access_log(self, raw_line: str) -> Optional[ApacheEvent]:
         match = ACCESS_LOG_RE.match(raw_line)
 
         if not match:
-            return None
+            raise ParseError(f"[ApacheParserAdapter] invalid access log format")
 
         try:
-            timestamp = datetime.strptime(
+            dt = datetime.strptime(
                 match.group("ts"),
                 ACCESS_TS_FMT,
             )
-        except ValueError as exc:
-            raise ParseError(f"ApacheParserAdapter: bad access timestamp: {exc}") from exc
-
+            timestamp = dt.astimezone(timezone.utc).strftime(OUTPUT_TS_FMT)
+        
+        except Exception as exc:
+            raise ParseError(f"[ApacheParserAdapter] invalid timestamp format in access log: {exc}") from exc
         ip = match.group("ip")
 
         user = match.group("user")
@@ -139,8 +146,9 @@ class ApacheParserAdapter(LogParser):
             status=status,
             success=success,
         )
+        severity_score = self.classify_severity(action)
 
-        return ApacheEvent(
+        apache_event = ApacheEvent(
             timestamp=timestamp,
             source="apache-access",
             ip=ip,
@@ -149,26 +157,30 @@ class ApacheParserAdapter(LogParser):
             action=action,
             success=success,
             status=status,
-            severity_score=self.classify_severity(action),
+            severity_score=severity_score,
             path=request_path,
             size=size,
             raw=raw_line,
         )
 
+        return apache_event
+
     def _parse_error_log(self, raw_line: str) -> Optional[ApacheEvent]:
         match = ERROR_LOG_RE.match(raw_line)
 
         if not match:
-            return None
-
+            raise ParseError(f"[ApacheParserAdapter] invalid error log format")
+        
         try:
-            timestamp = datetime.strptime(
+            dt = datetime.strptime(
                 match.group("ts"),
                 ERROR_TS_FMT,
-            )
-        except ValueError as exc:
-            raise ParseError(f"ApacheParserAdapter: bad error timestamp: {exc}") from exc
+            ).replace(tzinfo=timezone.utc)
+            timestamp = dt.astimezone(timezone.utc).strftime(OUTPUT_TS_FMT)
 
+        except Exception as exc:
+            raise ParseError(f"[ApacheParserAdapter] invalid timestamp format in error log: {exc}") from exc
+        
         message = match.group("message")
 
         client = match.group("client")
@@ -176,21 +188,23 @@ class ApacheParserAdapter(LogParser):
 
         if client:
             ip_match = CLIENT_IP_RE.search(client)
-
             if ip_match:
                 ip = ip_match.group("ip")
 
         action = self.classify_error_event(message)
+        severity_score = self.classify_severity(action)
 
-        return ApacheEvent(
+        apache_event = ApacheEvent(
             timestamp=timestamp,
             source="apache-error",
             ip=ip,
             action=action,
-            severity_score=self.classify_severity(action),
+            severity_score=severity_score,
             message=message,
             raw=raw_line,
         )
+
+        return apache_event
 
     @staticmethod
     def classify_status_success(status: int | None) -> bool | None:
