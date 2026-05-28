@@ -125,6 +125,7 @@ class ApacheParserAdapter(LogParser):
         
         except Exception as exc:
             raise ParseError(f"[ApacheParserAdapter] invalid timestamp format in access log: {exc}") from exc
+        
         ip = match.group("ip")
 
         user = match.group("user")

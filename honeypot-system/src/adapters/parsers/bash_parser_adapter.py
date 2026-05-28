@@ -1,7 +1,7 @@
 ﻿"""Adapter: BashParserAdapter — parses bash history, journald wrapped bash events, and auditd EXECVE events."""
 
 from pathlib import Path
-import re
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -9,17 +9,7 @@ from src.ports.outbound.log_parser_port import LogParser
 from src.domain.models.event import BashEvent
 from src.domain.exceptions.domain_exceptions import ParseError
 
-"""_PATTERN = re.compile(
-    r"(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"
-    r"\s+path=(?P<path>\S+)"
-    r"\s+user=(?P<user>\S+)"
-    r"\s+uid=(?P<uid>\d+)"
-    r"\s+groups=(?P<groups>\S+)"
-    r"\s+pid=(?P<pid>\d+)"
-    r"\s+ppid=(?P<ppid>\d+)"
-    
-    r'\s+cmd="(?P<cmd>[^"]+)"'
-)"""
+OUTPUT_TS_FMT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 # Commands that map to "download" action
 _DOWNLOAD  = {"wget ", "curl ", "fetch ", "tftp "}
@@ -62,18 +52,20 @@ class BashParserAdapter(LogParser):
             raise ParseError(f"[BashParserAdapter] unexpected error: {exc}") from exc
         
     def _parse_bash_event(self, raw_line: str) -> Optional[BashEvent]:
+        try:
+            timestamp = datetime.fromtimestamp(
+                time.time(),
+                tz=timezone.utc,
+            ).strftime(OUTPUT_TS_FMT)
 
-        """match = _PATTERN.search(raw_line)
-        if not match:
-            raise ParseError(f"BashParserAdapter: line does not match expected format: {raw_line}")"""
-
-        #ts_str = match.group("ts")
-        #timestamp = datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
-
+        except Exception as exc:
+            raise ParseError(f"[BashParserAdapter] invalid timestamp: {exc}") from exc
+        
         action = self.classify_event(raw_line)
         severity_score = self.classify_severity(action)
 
         event = BashEvent(
+            timestamp = timestamp,
             source="bash",
             cmd = raw_line,
             action = action,

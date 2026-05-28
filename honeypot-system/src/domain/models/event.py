@@ -58,7 +58,7 @@ class EnrichmentBundle:
 
 @dataclass
 class Event:
-    source: str = "generic"
+    source: str
     timestamp: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -94,8 +94,6 @@ class EnrichableEvent(Event):
 
 @dataclass
 class AuditdExecEvent(Event):
-    source: str = "auditd"
-
     event_id: int | None = None
     pid: int | None = None
     ppid: int | None = None
@@ -105,6 +103,8 @@ class AuditdExecEvent(Event):
     comm: str | None = None
     success: bool | None = None
     syscall: str | None = None
+    action: str | None = None
+    severity_score: int | None = None
     raw: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -119,6 +119,8 @@ class AuditdExecEvent(Event):
             "comm": self.comm,
             "success": self.success,
             "syscall": self.syscall,
+            "action": self.action,
+            "severity_score": self.severity_score,
             "raw": self.raw,
         })
 
@@ -127,8 +129,6 @@ class AuditdExecEvent(Event):
 
 @dataclass
 class BashEvent(Event):
-    source: str = "bash"
-
     cmd: str | None = None
     action: str | None = None
     severity_score: int | None = None
@@ -147,8 +147,6 @@ class BashEvent(Event):
 
 @dataclass
 class ApacheEvent(EnrichableEvent):
-    source: str = "apache"
-
     user: str | None = None
     action: str | None = None
     success: bool | None = None
@@ -185,8 +183,6 @@ class ApacheEvent(EnrichableEvent):
 
 @dataclass
 class FTPEvent(EnrichableEvent):
-    source: str = "ftp-extended"
-
     username: str | None = None
     command: str | None = None
     operation: str | None = None
