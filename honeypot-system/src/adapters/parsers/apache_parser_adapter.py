@@ -126,7 +126,6 @@ class ApacheParserAdapter(LogParser):
         raw_size = match.group("size")
         size = int(raw_size) if raw_size.isdigit() else 0
 
-        operation = self.classify_operation(method)
         success = self.classify_status_success(status)
 
         action = self.classify_event(
@@ -142,7 +141,6 @@ class ApacheParserAdapter(LogParser):
             ip=ip,
             user=user,
             method=method,
-            operation=operation,
             action=action,
             success=success,
             status=status,
@@ -185,24 +183,6 @@ class ApacheParserAdapter(LogParser):
             message=message,
             raw=raw_line,
         )
-
-    @staticmethod
-    def classify_operation(method: str | None) -> str:
-        value = (method or "").upper()
-
-        if value in {"GET", "HEAD", "OPTIONS"}:
-            return "read"
-
-        if value in {"POST", "PUT", "PATCH"}:
-            return "write"
-
-        if value == "DELETE":
-            return "delete"
-
-        if value in {"CONNECT", "TRACE"}:
-            return "tunnel"
-
-        return "request"
 
     @staticmethod
     def classify_status_success(status: int | None) -> bool | None:

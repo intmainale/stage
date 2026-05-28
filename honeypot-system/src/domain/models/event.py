@@ -124,10 +124,15 @@ class BashEvent(Event):
 class ApacheEvent(EnrichableEvent):
     source: str = "apache"
     user: str | None = None
+    action: str | None = None
+    success: bool | None = None
+    severity_score: int | None = None
     method: str | None = None
     path: str | None = None
     status: int | None = None
+    message: str | None = None
     size: int | None = None
+    raw: str | None = None
     enrichments: EnrichmentBundle = field(default_factory=EnrichmentBundle)
  
     def to_dict(self) -> dict[str, Any]:
@@ -140,6 +145,10 @@ class ApacheEvent(EnrichableEvent):
             "status": self.status,
             "size": self.size,
             "enrichments": self.enrichments.to_dict() if self.enrichments else None,
+            "action": self.action,
+            "severity_score": self.severity_score,
+            "message": self.message,
+            "raw": self.raw,
         }
 
 @dataclass
