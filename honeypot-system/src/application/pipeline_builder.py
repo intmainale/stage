@@ -33,7 +33,7 @@ class PipelineBuilder:
     def build(
         self,
         collectors: dict[str, dict],
-        services:   dict[str, dict],
+        services:   list[str],
         enrichers:  list[str],
         publishers: list[str]
     ) -> Pipeline:
@@ -52,12 +52,10 @@ class PipelineBuilder:
             except Exception as exc:
                 self._L.warning("Director: skipping collector '%s' -- %s", name, exc)
 
-        for name, config in services.items():
+        for name in services:
             try:
-                paths = config.get("path", [])
-                for path in paths:
-                    pipeline.add_parser(name, self._parser_factory.create_log_parser(name, path))
-                    self._L.debug("Director: added parser '%s'", name)
+                pipeline.add_parser(name, self._parser_factory.create_log_parser(name))
+                self._L.debug("Director: added parser '%s'", name)
             except Exception as exc:
                 self._L.warning("Director: skipping parser '%s' -- %s", name, exc)
 

@@ -21,12 +21,13 @@ def main() -> None:
         for name in cfg.get("pipeline.collectors", [])
     }
     
+    services   = cfg.get("pipeline.services", ["bash", "auditd"])
     publishers = cfg.get("pipeline.publishers", ["mqtt"])
     enrichers  = cfg.get("pipeline.enrichers",  [])
 
     app = Application(
         collectors       = collectors,
-        services         = collectors,
+        services         = services,
         enrichment_tools = enrichers,
         publishers       = publishers
     )
