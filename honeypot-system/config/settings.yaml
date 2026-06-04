@@ -6,9 +6,9 @@
 
 # ── MQTT broker ───────────────────────────────────────────────────────────────
 mqtt:
-  host:  "localhost"
+  host:  "100.68.234.61"
   port:  1883
-  topic: "eurosystem/logs"
+  topic: "logs"
 
 debug:
   output_path: "/var/log/honeypot/debug.log"
@@ -30,7 +30,8 @@ collectors:
       - "/var/log/apache2/error.log"
   ftp:
     path:
-      - "/var/log/vsftpd.log"
+      - "/home/alessandro/test-honeypot/proftpd/logs/xferlog"
+      - "/home/alessandro/test-honeypot/proftpd/logs/extended.log"
   cowrie:
     path: 
       - "/var/log/cowrie"
@@ -43,10 +44,12 @@ enrichers:
     api_key: ""
   shodan:
     api_key: ""
+  ip_api:
+    api_key: ""        # set to any non-empty value to enable (no key required)
 
 # ── Pipeline composition ──────────────────────────────────────────────────────
 pipeline:
   services:    ["bash", "apache", "auditd", "ftp"]
   collectors:  ["bash", "apache", "auditd", "ftp"]
-  publishers:  ["mqtt"]
-  enrichers:   ["virustotal", "abuseipdb"] # shodan free plan can't query host api gateway
+  publishers:  ["mqtt", "debug"]
+  enrichers:   ["virustotal", "abuseipdb", "ip_api"] # shodan free plan can't query host api gateway

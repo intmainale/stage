@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "10.10.0.2:1883:1883"
+      - "1883:1883"
 
     volumes:
       - ./mosquitto/config:/mosquitto/config
@@ -50,7 +50,7 @@ services:
 
     volumes:
       - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
-
+      - ./telegraf-logs:/var/log/telegraf
     command: ["--debug"]
 
   grafana:

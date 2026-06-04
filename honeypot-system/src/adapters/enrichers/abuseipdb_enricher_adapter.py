@@ -40,7 +40,7 @@ class AbuseIPDBEnricherAdapter(LogEnricher):
         
         if not entry.enrichments:
             entry.enrichments = EnrichmentBundle()
-        
+         
         entry.enrichments.abuseipdb = AbuseIPDBInfo()
         
         now = time.time()

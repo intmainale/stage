@@ -39,7 +39,7 @@ from src.adapters.collectors.ftp_log_collector_adapter import FtpLogCollectorAda
 from src.adapters.enrichers.virustotal_enricher_adapter import VirusTotalEnricherAdapter
 from src.adapters.enrichers.abuseipdb_enricher_adapter import AbuseIPDBEnricherAdapter
 from src.adapters.enrichers.shodan_enricher_adapter import ShodanEnricherAdapter
-
+from src.adapters.enrichers.ip_api_enricher_adapter import IPApiEnricherAdapter
 
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -97,6 +97,7 @@ class ConcreteLogEnricherFactory(LogEnricherFactory):
         "virustotal": VirusTotalEnricherAdapter,
         "abuseipdb":  AbuseIPDBEnricherAdapter,
         "shodan":     ShodanEnricherAdapter,
+        "ip_api":     IPApiEnricherAdapter,
     }
 
     def create_log_enricher(self, enricher_type: str) -> LogEnricher:

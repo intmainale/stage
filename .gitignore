@@ -5,6 +5,7 @@ ex_log.txt
 
 sandbox/
 mosquitto/
+telegraf-logs/
 
 # test files
 .coverage

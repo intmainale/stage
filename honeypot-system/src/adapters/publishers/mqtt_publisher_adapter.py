@@ -3,7 +3,7 @@ Adapter: MQTTPublisher
 Publishes Event objects to an MQTT broker as JSON payloads.
 Requires paho-mqtt; falls back to a stub when the library is absent.
 """
-
+ 
 import json
 from typing import Any
 
@@ -30,7 +30,7 @@ class MQTTPublisherAdapter(Publisher):
         cfg = Settings.get_instance()
         self._host:  str = cfg.get("mqtt.host",  "localhost")
         self._port:  int = int(cfg.get("mqtt.port",  "1883"))
-        self._topic: str = cfg.get("mqtt.topic", "eurosystem/logs")
+        self._topic: str = cfg.get("mqtt.topic_prefix", "logs")
         self._client: Any = None
 
         if _PAHO_AVAILABLE:
@@ -48,7 +48,7 @@ class MQTTPublisherAdapter(Publisher):
             self._L.warning("MQTTPublisher: paho-mqtt not installed — running in dry-run mode")
 
     def publish(self, entry: Event) -> None:
-        topic   = f"{self._topic}/{entry.source}/{entry.host or 'unknown'}"
+        topic   = f"{self._topic}/{entry.source}"
         payload = json.dumps(entry.to_dict(), default=str)
 
         if self._client is not None:

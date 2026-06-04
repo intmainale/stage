@@ -29,16 +29,24 @@ class ShodanInfo:
 
 
 @dataclass
-class AbuseIPDBInfo:
-    abuse_confidence_score: int | None = None
-
-    country: str | None = None
-    region: str | None = None
-    city: str | None = None
-
+class IPApiInfo:
+    country: str = ""
+    region_name: str = ""
+    city: str = ""
     latitude: float | None = None
     longitude: float | None = None
+    isp: str = ""
+    organization: str = ""
+    asn: str = ""
 
+    def to_dict(self) -> dict[str, Any]:
+        return self.__dict__
+
+    
+@dataclass
+class AbuseIPDBInfo:
+    abuse_confidence_score: int | None = None
+    country: str | None = None
     isp: str | None = None
     usage_type: str | None = None
     total_reports: int | None = None
@@ -52,6 +60,7 @@ class EnrichmentBundle:
     virustotal: VirusTotalInfo | None = None
     shodan: ShodanInfo | None = None
     abuseipdb: AbuseIPDBInfo | None = None
+    ip_api: IPApiInfo | None = None
 
 
 # ── Main Events ────────────────────────────────────────────────────────────────
@@ -88,6 +97,9 @@ class EnrichableEvent(Event):
 
         if self.enrichments.abuseipdb:
             data.update(self.enrichments.abuseipdb.to_dict())
+
+        if self.enrichments.ip_api:
+            data.update(self.enrichments.ip_api.to_dict())
 
         return data
 
