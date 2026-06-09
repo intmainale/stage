@@ -11,7 +11,7 @@ import urllib.request
 
 from src.ports.outbound.log_enricher_port import LogEnricher
 from src.domain.models.event import EnrichableEvent, ShodanInfo, EnrichmentBundle
-from src.domain.exceptions.domain_exceptions import EnrichmentError
+from src.domain.exceptions.domain_exceptions import EnrichmentError, SettingsError
 from config.settings import Settings
 
 _BASE = "https://api.shodan.io/shodan/host"
@@ -28,8 +28,12 @@ class ShodanEnricherAdapter(LogEnricher):
 
     def __init__(self) -> None:
         super().__init__()
-        cfg = Settings.get_instance()
-        self._api_key: str = cfg.get("enrichers.shodan.api_key", "")
+        try:
+            cfg = Settings.get_instance()
+            self._api_key: str = cfg.get("enrichers.shodan.api_key", "")
+        except KeyError as exc:
+            raise SettingsError("ShodanEnricherAdapter: failed to retrieve settings") from exc
+
         if not self._api_key:
             self._L.warning("ShodanEnricherAdapter: no API key configured — will skip enrichment")
 
@@ -63,27 +67,32 @@ class ShodanEnricherAdapter(LogEnricher):
                 }
                 _CACHE[entry.ip] = {"data": result, "_ts": now}
                 self.apply_enrichment(entry, result)
-                self._L.debug("ShodanEnricherAdapter: enriched %s", entry.ip)
+                self._L.debug(f"ShodanEnricherAdapter: enriched {entry.ip}")
 
         except urllib.error.HTTPError as http_exc:
-            if http_exc.code == 429:  # Too Many Requests
-                self._L.warning("ShodanEnricherAdapter: quota exceeded for %s", entry.ip)
-                if self.use_stale_cache(entry, cached, now):
-                    return entry
-                raise EnrichmentError(
-                    f"ShodanEnricherAdapter: quota exceeded and no valid cache for {entry.ip}"
-                ) from http_exc
+            if http_exc.code == 429:
+                message = (
+                    f"ShodanEnricherAdapter: quota exceeded "
+                    f"and no valid cache for {entry.ip}"
+                )
+            else:
+                message = (
+                    f"ShodanEnricherAdapter: HTTP error "
+                    f"{http_exc.code} and no valid cache for {entry.ip}"
+                )
 
+            if self.use_stale_cache(entry, cached, now):
+                return entry
+
+            raise EnrichmentError(message) from http_exc
+
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             if self.use_stale_cache(entry, cached, now):
                 return entry
             raise EnrichmentError(
-                f"ShodanEnricherAdapter: HTTP error {http_exc.code} for {entry.ip}: {http_exc.reason}"
-            ) from http_exc
-
-        except Exception as exc:  # noqa: BLE001
-            if self.use_stale_cache(entry, cached, now):
-                return entry
-            raise EnrichmentError(f"ShodanEnricherAdapter: API error for {entry.ip}: {exc}") from exc
+                f"ShodanEnricherAdapter: API error "
+                f"and no valid cache for {entry.ip}"
+            ) from exc
 
         return entry
 

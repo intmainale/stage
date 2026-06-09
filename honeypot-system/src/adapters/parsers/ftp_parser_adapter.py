@@ -10,7 +10,7 @@ from typing import Optional
 
 from src.ports.outbound.log_parser_port import LogParser
 from src.domain.models.event import FTPEvent
-from src.domain.exceptions.domain_exceptions import ParseError
+from src.domain.exceptions.domain_exceptions import ParseError, TimestampError
 
 
 XFERLOG_TS_FMT = "%a %b %d %H:%M:%S %Y"
@@ -70,36 +70,31 @@ class FTPParserAdapter(LogParser):
     DEFAULT_PATH = "/var/log/vsftpd.log"
 
     def parse(self, raw_line: str, path: str) -> Optional[FTPEvent]:
-        try:
-            raw_line = raw_line.strip()
-            if not raw_line:
-                return None
-            
-            if "xferlog" in path.lower():
-                return self._parse_xferlog(raw_line)
-            
-            elif "extended" in path.lower():
-                return self._parse_extended(raw_line)
-            
-            else:
-                raise ParseError(f"[FTPParserAdapter] unknown log format for path: {path}")
-       
-        except ParseError:
-            raise
-        except Exception as exc:
-            raise ParseError(f"[FTPParserAdapter] unexpected error: {exc}") from exc
+        raw_line = raw_line.strip()
+        if not raw_line:
+            return None
+        
+        if "xferlog" in path.lower():
+            self._L.debug("FTPParserAdapter: parsing xferlog line from %s", path)
+            return self._parse_xferlog(raw_line)
+        
+        if "extended" in path.lower():
+            self._L.debug("FTPParserAdapter: parsing extended line from %s", path)
+            return self._parse_extended(raw_line)
+        
+        raise ParseError(f"FTPParserAdapter: unknown path: {path}")
 
     def _parse_xferlog(self, raw_line: str) -> Optional[FTPEvent]:
         match = PROFTPD_XFERLOG_RE.match(raw_line)
         if not match:
-            raise ParseError("[FTPParserAdapter] invalid xferlog format")
+            raise ParseError("FTPParserAdapter: invalid xferlog format")
 
         try:
             dt = datetime.strptime(match.group("ts"), XFERLOG_TS_FMT).replace(tzinfo=timezone.utc)
             timestamp = dt.astimezone(timezone.utc).strftime(OUTPUT_TS_FMT)
 
-        except Exception as exc:
-            raise ParseError("[FTPParserAdapter] invalid xferlog timestamp: {exc}") from exc
+        except ValueError as exc:
+            raise TimestampError(f"FTPParserAdapter: invalid xferlog timestamp format") from exc
 
         remote_host = match.group("host")
         bytes_transferred = int(match.group("size"))
@@ -129,6 +124,19 @@ class FTPParserAdapter(LogParser):
         )
 
         severity_score = self.classify_severity(action)
+        self._L.debug(
+            f"FTPParserAdapter: (xferlog) event "
+            f"ip={remote_ip} "
+            f"user={username} " 
+            f"operation={operation} "
+            f"action={action} "
+            f"success={success} "
+            f"status={completion_status} "
+            f"severity_score={severity_score} "
+            f"file_path={file_path} "
+            f"bytes_transferred={bytes_transferred} "
+            f"access_mode={access_mode}"
+        )
 
         ftp_event = FTPEvent(
             timestamp=timestamp,
@@ -146,19 +154,20 @@ class FTPParserAdapter(LogParser):
             raw=raw_line,
         )
 
+        self._L.debug("FTPParserAdapter: (xferlog) parsed event: %s", ftp_event)
         return ftp_event
 
     def _parse_extended(self, raw_line: str) -> Optional[FTPEvent]:
         match = PROFTPD_EXTENDED_RE.match(raw_line)
         if not match:
-            raise ParseError("[FTPParserAdapter] invalid extended log format")
+            raise ParseError("FTPParserAdapter: invalid extended log format")
         
         try:
             dt = datetime.strptime(match.group("ts"), EXTENDED_TS_FMT)
             timestamp = dt.astimezone(timezone.utc).strftime(OUTPUT_TS_FMT)
 
-        except Exception as exc:
-            raise ParseError(f"[FTPParserAdapter] invalid timestamp format in extended log: {exc}") from exc
+        except ValueError as exc:
+            raise TimestampError(f"FTPParserAdapter: invalid extended log timestamp format") from exc
 
         request = match.group("request").strip()
         command, _, raw_argument = request.partition(" ")
@@ -190,6 +199,20 @@ class FTPParserAdapter(LogParser):
             remote_ip = host_match.group("octets").replace("-", ".") if host_match else None
 
         severity_score = self.classify_severity(action)
+        self._L.debug(
+            f"FTPParserAdapter: (extended) event "
+            f"ip={remote_ip} "
+            f"user={username} " 
+            f"operation={operation} "
+            f"command={command} "
+            f"action={action} "
+            f"success={success} "
+            f"status={status} "
+            f"severity_score={severity_score} "
+            f"file_path={file_path} "
+            f"bytes_transferred={bytes_transferred} "
+            f"message={request}"
+        )
 
         ftp_event = FTPEvent(
             timestamp=timestamp,
@@ -208,6 +231,7 @@ class FTPParserAdapter(LogParser):
             raw=raw_line,
         )
 
+        self._L.debug("FTPParserAdapter: (extended) parsed event: %s", ftp_event)
         return ftp_event
 
     @staticmethod

@@ -18,6 +18,16 @@ class Publisher(ABC):
     def __init__(self) -> None:
         self._L: Logger = Logger.get_instance()
 
+    def close(self) -> None:
+        """Release owned resources; default no-op for publishers."""
+        pass
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
     @abstractmethod
     def publish(self, entry: Event) -> None:
         """

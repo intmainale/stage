@@ -15,22 +15,21 @@ class FtpLogCollectorAdapter(LogCollector):
 
     DEFAULT_PATH = "/var/log/extended.log"
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, parser_type: str) -> None:
         super().__init__()
         self.path = Path(path) if path else Path(self.DEFAULT_PATH)
 
     def collect(self, stop_event: threading.Event) -> Iterator[tuple[str, str]]:
-        self._L.info(f"FtpLogCollectorAdapter {self.path}: reading from {self.path}")
+        self._L.info("FtpLogCollectorAdapter: reading from %s", self.path)
 
         if not self.path.exists():
-            self._L.warning(f"FtpLogCollectorAdapter {self.path}: log not found: {self.path}")
-            return
+            raise CollectionError(f"FtpLogCollectorAdapter: file not found: {self.path}")
 
         try:
             yield from self.tail_file(self.path, stop_event)
 
         except OSError as exc:
-            raise CollectionError(f"FtpLogCollectorAdapter {self.path}: read error: {exc}") from exc
+            raise CollectionError(f"FtpLogCollectorAdapter: read error for {self.path}") from exc
 
     def tail_file(self, path: Path, stop_event: threading.Event) -> Iterator[tuple[str, str]]:
         """Tails a file and yields new lines as they are written."""
@@ -41,6 +40,7 @@ class FtpLogCollectorAdapter(LogCollector):
                 
                 line = fh.readline()
                 if line:
+                    self._L.debug("FtpLogCollectorAdapter: read line from %s: %s", path, line.strip())
                     yield line.strip(), str(path)
                 else:
                     time.sleep(0.1)

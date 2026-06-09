@@ -6,7 +6,7 @@ from typing import Optional
 
 from src.ports.outbound.log_parser_port import LogParser
 from src.domain.models.event import AuditdExecEvent
-from src.domain.exceptions.domain_exceptions import ParseError
+from src.domain.exceptions.domain_exceptions import ParseError, TimestampError
 
 
 AUDIT_MSG_RE = re.compile(
@@ -126,32 +126,30 @@ class AuditdParserAdapter(LogParser):
             arch=c000003e syscall=59 success=yes exe="/usr/bin/curl"
             comm="curl" pid=1234 uid=1000 ppid=5678
         """
-        try:
-            raw_line = raw_line.strip()
-            if not raw_line:
-                return None
-
-            return self._parse_execve_event(raw_line)
-
-        except ParseError:
-            raise
-        except Exception as exc:
-            raise ParseError(f"[AuditdParserAdapter] unexpected error: {exc}") from exc
+        raw_line = raw_line.strip()
+        if not raw_line:
+            return None
+        
+        self._L.debug("AuditdParserAdapter: parsing audit line")
+        return self._parse_execve_event(raw_line)
 
     def _parse_execve_event(self, raw_line: str) -> Optional[AuditdExecEvent]:
         match = AUDIT_MSG_RE.search(raw_line)
         if not match:
-            raise ParseError("[AuditdParserAdapter] invalid audit log format")
+            raise ParseError("AuditdParserAdapter: invalid audit log format")
 
         try:
             ts = float(match.group("ts"))
             dt = datetime.fromtimestamp(ts, tz=timezone.utc)
             timestamp = dt.astimezone(timezone.utc).strftime(OUTPUT_TS_FMT)
+            self._L.debug(
+                "AuditdParserAdapter: parsed timestamp=%s event_id=%s",
+                timestamp,
+                match.group("id"),
+            )
 
-        except Exception as exc:
-            raise ParseError(
-                f"[AuditdParserAdapter] invalid timestamp format in audit log: {exc}"
-            ) from exc
+        except ValueError as exc:
+            raise TimestampError(f"AuditdParserAdapter: invalid auditd timestamp format") from exc
 
         event_id = int(match.group("id"))
 
@@ -173,9 +171,23 @@ class AuditdParserAdapter(LogParser):
         comm = fields.get("comm")
 
         success = fields.get("success") == "yes"
-
-        action = self.classify_event(exe=exe, comm=comm, uid=uid, success=success)
+    
+        action = self.classify_event(exe=exe, comm=comm, uid=uid)
         severity_score = self.classify_severity(action)
+
+        self._L.debug(
+            "AuditdParserAdapter: event exe=%s comm=%s uid=%s success=%s syscall=%s pid=%s ppid=%s event_id=%s action=%s severity_score=%s",
+            exe,
+            comm,
+            uid,
+            success,
+            syscall,
+            pid,
+            ppid,
+            event_id,
+            action,
+            severity_score,
+        )
 
         auditd_event = AuditdExecEvent(
             timestamp=timestamp,
@@ -193,6 +205,7 @@ class AuditdParserAdapter(LogParser):
             raw=raw_line,
         )
 
+        self._L.debug("AuditdParserAdapter: parsed event: %s", auditd_event)
         return auditd_event
 
     # ── Classification helpers ────────────────────────────────────────────────
@@ -201,8 +214,7 @@ class AuditdParserAdapter(LogParser):
     def classify_event(
         exe: str | None,
         comm: str | None,
-        uid: int | None,
-        success: bool | None,
+        uid: int | None
     ) -> str:
         """
         Classify an execve event into a named action.

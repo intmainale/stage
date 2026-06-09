@@ -1,13 +1,12 @@
-﻿"""Adapter: BashParserAdapter — parses bash history, journald wrapped bash events, and auditd EXECVE events."""
+"""Adapter: BashParserAdapter — parses bash history, journald wrapped bash events, and auditd EXECVE events."""
 
-from pathlib import Path
 import time
 from datetime import datetime, timezone
 from typing import Optional
 
+from src.domain.exceptions.domain_exceptions import ParseError, TimestampError
 from src.ports.outbound.log_parser_port import LogParser
 from src.domain.models.event import BashEvent
-from src.domain.exceptions.domain_exceptions import ParseError
 
 OUTPUT_TS_FMT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
@@ -39,17 +38,12 @@ class BashParserAdapter(LogParser):
         Example input:
             2026-05-15T10:42:11 path=/home/alex user=alex groups=admin,docker,sudo 1000 1231 cmd="ls -la"
         """
-        try:
-            raw_line = raw_line.strip()
-            if not raw_line:
-                return None
+        raw_line = raw_line.strip()
+        if not raw_line:
+            return None
 
-            return self._parse_bash_event(raw_line)
-
-        except ParseError:
-            raise
-        except Exception as exc:
-            raise ParseError(f"[BashParserAdapter] unexpected error: {exc}") from exc
+        self._L.debug("BashParserAdapter: parsing bash line from %s", path)
+        return self._parse_bash_event(raw_line)
         
     def _parse_bash_event(self, raw_line: str) -> Optional[BashEvent]:
         try:
@@ -57,12 +51,16 @@ class BashParserAdapter(LogParser):
                 time.time(),
                 tz=timezone.utc,
             ).strftime(OUTPUT_TS_FMT)
-
         except Exception as exc:
-            raise ParseError(f"[BashParserAdapter] invalid timestamp: {exc}") from exc
-        
+            raise TimestampError(f"BashParserAdapter: invalid bash timestamp format or creation failed") from exc
+
         action = self.classify_event(raw_line)
         severity_score = self.classify_severity(action)
+        self._L.debug(
+            "BashParserAdapter: event action=%s severity_score=%s",
+            action,
+            severity_score,
+        )
 
         event = BashEvent(
             timestamp = timestamp,
@@ -72,6 +70,7 @@ class BashParserAdapter(LogParser):
             severity_score = severity_score,
         )
         
+        self._L.debug("BashParserAdapter: parsed event: %s", event)
         return event
 
 

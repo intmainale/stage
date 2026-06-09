@@ -16,7 +16,7 @@ from src.factories.concrete_factories import (
 )
 
 from src.application.collector_thread import CollectorThread
-from src.domain.exceptions.domain_exceptions import PipelineError
+from src.domain.exceptions.domain_exceptions import HoneypotError, PipelineError, PublishError
 from src.infrastructure.logger import Logger
 
 
@@ -28,8 +28,9 @@ class Application:
         services:        dict[str, str],
         enrichment_tools: list[str],
         publishers:      list[str],
+        logging_level:   int = 0
     ) -> None:
-        self._L               = Logger.get_instance()
+        self._L               = Logger.get_instance(level=logging_level)
         self._services        = services
         self._publishers      = publishers
         self._collectors      = collectors
@@ -55,7 +56,8 @@ class Application:
         )
 
         if self._pipeline.is_empty():
-            raise PipelineError("Pipeline is empty — check your configuration.")
+            raise PipelineError("Application: pipeline is empty — check your configuration.")
+        
         self._L.info("Application: pipeline built successfully")
 
     def start_pipeline(self) -> None:
@@ -63,8 +65,8 @@ class Application:
         self._L.info("  NullHive — Honeypot System")
         self._L.info("=" * 60)
         
-        if self._pipeline.is_empty():
-            raise PipelineError("Pipeline has not been built. Call build_pipeline() first.")
+        if self._pipeline is None or self._pipeline.is_empty():
+            raise PipelineError("Application: pipeline has not been built")
 
         self._stop_event.clear()
         self._threads.clear()
@@ -77,9 +79,10 @@ class Application:
             )
             self._threads.append(thread)
             thread.start()
-            self._L.info("Started CollectorThread for %s", type(collector).__name__)
+            self._L.debug(f"Application: started thread for {type(collector).__name__}")
 
-        self._L.info("Application: %d collector thread(s) running", len(self._threads))
+        self._L.info(f"Application: {len(self._threads)} collector thread(s) running")
+
 
     def stop_pipeline(self) -> None:
         self._L.info("Application: stopping pipeline ...")
@@ -88,7 +91,12 @@ class Application:
         for thread in self._threads:
             thread.join(timeout=10)
             if thread.is_alive():
-                self._L.warning("CollectorThread did not stop in time: %s", thread.name)
+                self._L.warning(f"Application: thread did not stop in time: {thread.name}")
 
+        if self._pipeline is not None:
+            for publisher in self._pipeline.publishers:
+                self._L.debug(f"Application: closing publisher {type(publisher).__name__}")
+                publisher.close()
+                
         self._threads.clear()
         self._L.info("Application: pipeline stopped")

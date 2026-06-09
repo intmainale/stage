@@ -44,41 +44,28 @@ class PipelineBuilder:
         pipeline = Pipeline()
 
         for name, config in collectors.items():
-            try:
-                paths = config.get("path", [])
-                for path in paths:
-                    pipeline.add_collector(self._collector_factory.create_log_collector(name, path))
-                    self._L.debug("Director: added collector '%s'", name)
-            except Exception as exc:
-                self._L.warning("Director: skipping collector '%s' -- %s", name, exc)
+            paths = config.get("path", [])
+            for path in paths:
+                pipeline.add_collector(self._collector_factory.create_log_collector(name, path))
+                self._L.debug(f"PipelineBuilder: added collector {name} with path {path}")
 
         for name in services:
-            try:
-                pipeline.add_parser(name, self._parser_factory.create_log_parser(name))
-                self._L.debug("Director: added parser '%s'", name)
-            except Exception as exc:
-                self._L.warning("Director: skipping parser '%s' -- %s", name, exc)
-
+            pipeline.add_parser(name, self._parser_factory.create_log_parser(name))
+            self._L.debug(f"PipelineBuilder: added parser {name}")
         for name in enrichers:
-            try:
-                pipeline.add_enricher(self._enricher_factory.create_log_enricher(name))
-                self._L.debug("Director: added enricher '%s'", name)
-            except Exception as exc:
-                self._L.warning("Director: skipping enricher '%s' -- %s", name, exc)
+            pipeline.add_enricher(self._enricher_factory.create_log_enricher(name))
+            self._L.debug(f"PipelineBuilder: added enricher {name}")
 
         for name in publishers:
-            try:
-                pipeline.add_publisher(self._publisher_factory.create_publisher(name))
-                self._L.debug("Director: added publisher '%s'", name)
-            except Exception as exc:
-                self._L.warning("Director: skipping publisher '%s' -- %s", name, exc)
+            pipeline.add_publisher(self._publisher_factory.create_publisher(name))
+            self._L.debug(f"PipelineBuilder: added publisher {name}")
 
         self._L.info(
-            "Director: pipeline ready -- parsers=%d collectors=%d enrichers=%d publishers=%d",
-            len(pipeline.parsers),
-            len(pipeline.collectors),
-            len(pipeline.enrichers),
-            len(pipeline.publishers),
+            f"PipelineBuilder: pipeline ready -- "
+            f"parsers={len(pipeline.parsers)} "
+            f"collectors={len(pipeline.collectors)} "
+            f"enrichers={len(pipeline.enrichers)} "
+            f"publishers={len(pipeline.publishers)}"
         )
         
         return pipeline

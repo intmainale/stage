@@ -16,8 +16,8 @@ class Logger:
     _instance: Optional["Logger"] = None
     _lock: threading.Lock = threading.Lock()
 
-    def __init__(self, name: str = "eurosystem", level: int = logging.DEBUG) -> None:
-        self._logger = logging.getLogger(name)
+    def __init__(self, level: int = logging.DEBUG) -> None:
+        self._logger = logging.getLogger()
         if not self._logger.handlers:
             handler = logging.StreamHandler()
             formatter = logging.Formatter(
@@ -33,12 +33,12 @@ class Logger:
     # ------------------------------------------------------------------ #
 
     @classmethod
-    def get_instance(cls, name: str = "eurosystem", level: int = logging.DEBUG) -> "Logger":
+    def get_instance(cls, level: int = logging.DEBUG) -> "Logger":
         """Return the global Logger instance, creating it if necessary."""
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = cls(name, level)
+                    cls._instance = cls(level)
         return cls._instance
 
     # ------------------------------------------------------------------ #

@@ -9,43 +9,40 @@ from typing import Any
 
 from src.ports.outbound.publisher_port import Publisher
 from src.domain.models.event import Event
-from src.domain.exceptions.domain_exceptions import PublishError
+from src.domain.exceptions.domain_exceptions import PublishError, SettingsError
 from config.settings import Settings
 
-try:
-    import paho.mqtt.client as mqtt  # type: ignore
-    _PAHO_AVAILABLE = True
-except ImportError:
-    _PAHO_AVAILABLE = False
+import paho.mqtt.client as mqtt
+
 
 
 class MQTTPublisherAdapter(Publisher):
     """
-    Publishes each Event as a JSON message to an MQTT topic.
-    Topic pattern: eurosystem/<source>/<host>
+    Publishes each Event as a flat JSON message to an MQTT topic.
+    Topic pattern: {topic_prefix}/{event.source}
     """
 
     def __init__(self) -> None:
         super().__init__()
-        cfg = Settings.get_instance()
-        self._host:  str = cfg.get("mqtt.host",  "localhost")
-        self._port:  int = int(cfg.get("mqtt.port",  "1883"))
-        self._topic: str = cfg.get("mqtt.topic_prefix", "logs")
+        try:
+            cfg = Settings.get_instance()
+            self._host:  str = cfg.get("mqtt.host",  "localhost")
+            self._port:  int = int(cfg.get("mqtt.port",  "1883"))
+            self._topic: str = cfg.get("mqtt.topic_prefix", "logs")
+        except KeyError as exc:
+            raise SettingsError("MQTTPublisherAdapter: failed to retrieve settings") from exc
+        
         self._client: Any = None
 
-        if _PAHO_AVAILABLE:
+        try:
             self._client = mqtt.Client()
+            self._client.connect(self._host, self._port, keepalive=60)
+            self._client.loop_start()
+            self._L.info(f"MQTTPublisherAdapter connected to {self._host}:{self._port}")
 
-            try:
-                self._client.connect(self._host, self._port, keepalive=60)
-                self._client.loop_start()
-                self._L.info("MQTTPublisher connected to %s:%d", self._host, self._port)
-
-            except Exception as exc:  # noqa: BLE001
-                self._L.warning("MQTTPublisher: could not connect: %s", exc)
-                self._client = None
-        else:
-            self._L.warning("MQTTPublisher: paho-mqtt not installed — running in dry-run mode")
+        except (OSError, ValueError, RuntimeError) as exc:
+            self._client = None
+            raise PublishError(f"MQTTPublisherAdapter: could not connect to {self._host}:{self._port}") from exc
 
     def publish(self, entry: Event) -> None:
         topic   = f"{self._topic}/{entry.source}"
@@ -54,16 +51,19 @@ class MQTTPublisherAdapter(Publisher):
         if self._client is not None:
             result = self._client.publish(topic, payload)
             if result.rc != 0:
-                raise PublishError(f"MQTT publish failed with rc={result.rc}")
-            self._L.debug("MQTTPublisher: published to %s", topic)
-        else:
-            # Dry-run: just log the payload
-            self._L.info("MQTTPublisher [dry-run] → %s : %s", topic, payload[:120])
+                raise PublishError(f"MQTTPublisherAdapter: publish failed with rc={result.rc}")
+            self._L.debug(f"MQTTPublisherAdapter: published to {topic}")
+            return
 
-    def __del__(self) -> None:
+        raise PublishError("MQTTPublisherAdapter: client is not connected")
+
+    def close(self) -> None:
         if self._client is not None:
             try:
                 self._client.loop_stop()
                 self._client.disconnect()
-            except Exception:  # noqa: BLE001
-                pass
+                self._L.info("MQTTPublisherAdapter: connection closed")
+            except (OSError, RuntimeError, ValueError) as exc:
+                raise PublishError(f"MQTTPublisherAdapter: connection close failed") from exc
+            finally:
+                self._client = None

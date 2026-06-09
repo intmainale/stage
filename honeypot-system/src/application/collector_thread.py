@@ -9,17 +9,12 @@ import threading
 from typing import Optional
 
 from src.application.pipeline import Pipeline
-from src.domain.exceptions.domain_exceptions import (
-    ParseError, CollectionError, PublishError, EnrichmentError,
-)
+from src.domain.exceptions.domain_exceptions import PipelineError
+
 from src.domain.models.event import EnrichableEvent
 from src.infrastructure.logger import Logger
 from src.ports.outbound.log_collector_port import LogCollector
 
-from src.adapters.collectors.apache_log_collector_adapter import ApacheLogCollectorAdapter
-from src.adapters.collectors.bash_log_collector_adapter import BashLogCollectorAdapter
-from src.adapters.collectors.auditd_log_collector_adapter import AuditdLogCollectorAdapter
-from src.adapters.collectors.ftp_log_collector_adapter import FtpLogCollectorAdapter
 
 class CollectorThread(threading.Thread):
 
@@ -39,61 +34,29 @@ class CollectorThread(threading.Thread):
         self._stop_event.set()
 
     def run(self) -> None:
-        collector_name = type(self._collector).__name__
-        self._L.info("CollectorThread started: %s", collector_name)
-
+        collector_name = type(self._collector).__name__ 
+        self._L.debug(f"CollectorThread: started {collector_name} thread")
+        
+        parser_name = self._collector.parser_type
         try:
-            for raw_line, path in self._collector.collect(self._stop_event):
+            parser = self._pipeline.parsers[parser_name]
+        except KeyError:
+            raise PipelineError(f"CollectorThread: no parser found for type '{parser_name}'")
+    
+        for raw_line, path in self._collector.collect(self._stop_event):
 
-                if self._stop_event.is_set():
-                    self._L.info("CollectorThread stopping: %s", collector_name)
-                    break
-                event = None
+            if self._stop_event.is_set():
+                self._L.debug(f"CollectorThread: stopping {collector_name}")
+                break
+            
+            event = parser.parse(raw_line, path)
+            
+            if event is not None and isinstance(event, EnrichableEvent):
+                for enricher in self._pipeline.enrichers:
+                    event = enricher.enrich(event)
 
-                if isinstance(self._collector, ApacheLogCollectorAdapter):
-                    try:
-                        event = self._pipeline.parsers["apache"].parse(raw_line, path)
-                    except ParseError as exc:
-                        self._L.error("Parse error [%s]: %s", "apache", exc)
+            if event is not None:
+                for publisher in self._pipeline.publishers:
+                    publisher.publish(event)
 
-                elif isinstance(self._collector, BashLogCollectorAdapter):
-                    try:
-                        event = self._pipeline.parsers["bash"].parse(raw_line, path)
-                    except ParseError as exc:
-                        self._L.error("Parse error [%s]: %s", "bash", exc)
-
-                elif isinstance(self._collector, AuditdLogCollectorAdapter):
-                    try:
-                        event = self._pipeline.parsers["auditd"].parse(raw_line, path)
-                    except ParseError as exc:
-                        self._L.error("Parse error [%s]: %s", "auditd", exc)
-
-                elif isinstance(self._collector, FtpLogCollectorAdapter):
-                    try:
-                        event = self._pipeline.parsers["ftp"].parse(raw_line, path)
-                    except ParseError as exc:
-                        self._L.error("Parse error [%s]: %s", "ftp", exc)
-                
-                else:
-                    raise ParseError(f"No parser found for collector type: {type(self._collector).__name__}")
-                
-                if event is not None and isinstance(event, EnrichableEvent):
-                    for enricher in self._pipeline.enrichers:
-                        try:
-                            event = enricher.enrich(event)
-                        except EnrichmentError as exc:
-                            self._L.warning(exc)
-
-                if event is not None:
-                    for publisher in self._pipeline.publishers:
-                        try:
-                            publisher.publish(event)
-                        except PublishError as exc:
-                            self._L.error("Publish error [%s]: %s", type(publisher).__name__, exc)
-
-        except CollectionError as exc:
-            self._L.error("CollectorThread [%s] fatal collection error: %s", collector_name, exc)
-        except Exception as exc:
-            self._L.exception("CollectorThread [%s] unexpected error: %s", collector_name, exc)
-        finally:
-            self._L.info("CollectorThread finished: %s", collector_name)
+        self._L.debug(f"CollectorThread: finished {collector_name} thread")

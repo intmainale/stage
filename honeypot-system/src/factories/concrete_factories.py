@@ -33,7 +33,6 @@ from src.adapters.collectors.bash_log_collector_adapter import BashLogCollectorA
 from src.adapters.collectors.auditd_log_collector_adapter import AuditdLogCollectorAdapter
 from src.adapters.collectors.apache_log_collector_adapter import ApacheLogCollectorAdapter
 from src.adapters.collectors.ftp_log_collector_adapter import FtpLogCollectorAdapter
-#from src.adapters.collectors.journald_log_collector_adapter import JournaldLogCollector
 
 # ── enricher adapters ────────────────────────────────────────────────────────
 from src.adapters.enrichers.virustotal_enricher_adapter import VirusTotalEnricherAdapter
@@ -77,11 +76,10 @@ class ConcretePublisherFactory(PublisherFactory):
 
 class ConcreteLogCollectorFactory(LogCollectorFactory):
     _REGISTRY: dict[str, type[LogCollector]] = {
-        "bash":    BashLogCollectorAdapter,
-        "auditd":  AuditdLogCollectorAdapter,
-        #"journald": JournaldLogCollectorAdapter,
-        "apache":  ApacheLogCollectorAdapter,
-        "ftp":     FtpLogCollectorAdapter,
+        "bash":   BashLogCollectorAdapter,
+        "auditd": AuditdLogCollectorAdapter,
+        "apache": ApacheLogCollectorAdapter,
+        "ftp":    FtpLogCollectorAdapter,
     }
 
     def create_log_collector(self, collector_type: str, path: str) -> LogCollector:
@@ -89,7 +87,7 @@ class ConcreteLogCollectorFactory(LogCollectorFactory):
         if cls is None:
             raise ConfigurationError(f"Unknown collector type: '{collector_type}'")
         self._L.debug("Creating collector: %s", collector_type)
-        return cls(path)
+        return cls(path, collector_type.lower())
 
 
 class ConcreteLogEnricherFactory(LogEnricherFactory):

@@ -12,7 +12,7 @@ import urllib.request
 
 from src.ports.outbound.log_enricher_port import LogEnricher
 from src.domain.models.event import AbuseIPDBInfo, EnrichableEvent, EnrichmentBundle
-from src.domain.exceptions.domain_exceptions import EnrichmentError
+from src.domain.exceptions.domain_exceptions import EnrichmentError, SettingsError
 from config.settings import Settings
 
 _BASE = "https://api.abuseipdb.com/api/v2/check"
@@ -29,8 +29,12 @@ class AbuseIPDBEnricherAdapter(LogEnricher):
 
     def __init__(self) -> None:
         super().__init__()
-        cfg = Settings.get_instance()
-        self._api_key: str = cfg.get("enrichers.abuseipdb.api_key", "")
+        try:
+            cfg = Settings.get_instance()
+            self._api_key: str = cfg.get("enrichers.abuseipdb.api_key", "")
+        except KeyError as exc:
+            raise SettingsError("AbuseIPDBEnricherAdapter: failed to retrieve settings") from exc
+        
         if not self._api_key:
             self._L.warning("AbuseIPDBEnricherAdapter: no API key configured — will skip enrichment")
 
@@ -60,43 +64,52 @@ class AbuseIPDBEnricherAdapter(LogEnricher):
             with urllib.request.urlopen(req, timeout=5) as resp:
                 body = json.loads(resp.read())
                 data = body.get("data", {})
+
                 result = {
-                    "abuse_confidence_score":   data.get("abuseConfidenceScore", 0),
-                    "total_reports":            data.get("totalReports", 0),
-                    "country":                  data.get("countryName", ""),
-                    "isp":                      data.get("isp", ""),
-                    "usage_type":               data.get("usageType", ""),
+                    "abuse_confidence_score": data.get("abuseConfidenceScore", 0),
+                    "total_reports": data.get("totalReports", 0),
+                    "country": data.get("countryName", ""),
+                    "isp": data.get("isp", ""),
+                    "usage_type": data.get("usageType", ""),
                 }
+
                 _CACHE[entry.ip] = {"data": result, "_ts": now}
                 self.apply_enrichment(entry, result)
-                self._L.debug("AbuseIPDBEnricherAdapter: enriched %s", entry.ip)
+                self._L.debug(f"AbuseIPDBEnricherAdapter: enriched {entry.ip}")
 
         except urllib.error.HTTPError as http_exc:
-            if http_exc.code == 429:  # Too Many Requests
-                self._L.warning("AbuseIPDBEnricherAdapter: quota exceeded for %s", entry.ip)
-                if self.use_stale_cache(entry, cached, now):
-                    return entry
-                raise EnrichmentError(
-                    f"AbuseIPDBEnricherAdapter: quota exceeded and no valid cache for {entry.ip}"
-                ) from http_exc
+
+            if http_exc.code == 429:
+                message = (
+                    f"AbuseIPDBEnricherAdapter: quota exceeded "
+                    f"and no valid cache for {entry.ip}"
+                )
+            else:
+                message = (
+                    f"AbuseIPDBEnricherAdapter: HTTP error "
+                    f"{http_exc.code} and no valid cache for {entry.ip}"
+                )
 
             if self.use_stale_cache(entry, cached, now):
                 return entry
+
+            raise EnrichmentError(message) from http_exc
+
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+
+            if self.use_stale_cache(entry, cached, now):
+                return entry
+
             raise EnrichmentError(
-                f"AbuseIPDBEnricherAdapter: HTTP error {http_exc.code} for {entry.ip}: {http_exc.reason}"
-            ) from http_exc
-
-        except Exception as exc:  # noqa: BLE001
-            if self.use_stale_cache(entry, cached, now):
-                return entry
-            raise EnrichmentError(f"AbuseIPDBEnricherAdapter: API error for {entry.ip}: {exc}") from exc
+                f"AbuseIPDBEnricherAdapter: API error and no valid cache for {entry.ip}"
+            ) from exc
 
         return entry
 
 
     def use_stale_cache(self, entry: EnrichableEvent, cached: dict | None, now: float) -> bool:
         if cached and (now - cached["_ts"]) < _STALE_CACHE_TTL:
-            self._L.warning("AbuseIPDBEnricherAdapter: using stale cache for %s", entry.ip)
+            self._L.warning(f"AbuseIPDBEnricherAdapter: using stale cache for {entry.ip}")
             self.apply_enrichment(entry, cached["data"])
             return True
         return False

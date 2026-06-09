@@ -15,7 +15,7 @@ from src.domain.models.event import (
     EnrichmentBundle,
     IPApiInfo,
 )
-from src.domain.exceptions.domain_exceptions import EnrichmentError
+from src.domain.exceptions.domain_exceptions import EnrichmentError, SettingsError
 from config.settings import Settings
 
 _BASE = "http://ip-api.com/json"
@@ -34,9 +34,11 @@ class IPApiEnricherAdapter(LogEnricher):
 
     def __init__(self) -> None:
         super().__init__()
-
-        cfg = Settings.get_instance()
-        self._enabled = cfg.get("enrichers.ip_api.api_key", "")
+        try:
+            cfg = Settings.get_instance()
+            self._enabled = cfg.get("enrichers.ip_api.api_key", "")
+        except KeyError as exc:
+            raise SettingsError("IPApiEnricherAdapter: failed to retrieve settings") from exc
 
         if not self._enabled:
             self._L.warning("IPApiEnricherAdapter: no API key configured — will continue to enrich with free API")
@@ -90,11 +92,7 @@ class IPApiEnricherAdapter(LogEnricher):
                 }
 
                 self.apply_enrichment(entry, result)
-
-                self._L.debug(
-                    "IPApiEnricherAdapter: enriched %s",
-                    entry.ip,
-                )
+                self._L.debug(f"IPApiEnricherAdapter: enriched {entry.ip}")
 
         except urllib.error.HTTPError as http_exc:
             if self.use_stale_cache(entry, cached, now):
@@ -102,17 +100,16 @@ class IPApiEnricherAdapter(LogEnricher):
 
             raise EnrichmentError(
                 f"IPApiEnricherAdapter: HTTP error "
-                f"{http_exc.code} for {entry.ip}: "
-                f"{http_exc.reason}"
+                f"{http_exc.code} and no valid cache for {entry.ip}"
             ) from http_exc
 
-        except Exception as exc:  # noqa: BLE001
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             if self.use_stale_cache(entry, cached, now):
                 return entry
 
             raise EnrichmentError(
                 f"IPApiEnricherAdapter: API error "
-                f"for {entry.ip}: {exc}"
+                f"and no valid cache for {entry.ip}"
             ) from exc
 
         return entry
@@ -124,10 +121,7 @@ class IPApiEnricherAdapter(LogEnricher):
         now: float,
     ) -> bool:
         if cached and (now - cached["_ts"]) < _STALE_CACHE_TTL:
-            self._L.warning(
-                "IPApiEnricherAdapter: using stale cache for %s",
-                entry.ip,
-            )
+            self._L.warning(f"IPApiEnricherAdapter: using stale cache for {entry.ip}")
 
             self.apply_enrichment(entry, cached["data"])
             return True
