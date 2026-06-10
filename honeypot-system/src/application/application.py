@@ -43,17 +43,21 @@ class Application:
 
     
     def run(self) -> int:
-        signal.signal(signal.SIGINT, self._shutdown_signal)
-        signal.signal(signal.SIGTERM, self._shutdown_signal)
 
         try:
             status = self.configure()
+
+            signal.signal(signal.SIGINT, self._shutdown_signal)
+            signal.signal(signal.SIGTERM, self._shutdown_signal)
+
             if status != 0:
                 return status
             self.build_pipeline()
             self.start_pipeline()
-
             self._stop_event.wait()
+            self.stop_pipeline()
+            print("Application: exiting")
+
             return 0
         
         except ParseError as exc:
@@ -67,10 +71,6 @@ class Application:
         except Exception as exc:
             self._L.exception(f"Application: Unexpected error")
             return 1
-        
-        finally:
-            self.stop_pipeline()
-            print("Application: exiting")
 
 
     def configure(self) -> int:
@@ -97,26 +97,26 @@ class Application:
 
             if not choice:
                 print(f"Empty choice - default INFO")
-                print("Application: configuration complete")
                 self._L = Logger.get_instance(level=logging.INFO)
+                print("Application: configuration complete")
                 return 0
 
         except KeyboardInterrupt:
             print("Startup interrupted (Ctrl+C) - shutting down")
-            return -1
+            return 1
 
         except EOFError:
             print("Input closed (EOF) - shutting down")
-            return -1
+            return 1
 
         if choice not in LOG_LEVELS:
             print(f"Invalid choice '{choice}' - default INFO")
-            print("Application: configuration complete")
             self._L = Logger.get_instance(level=logging.INFO)
+            print("Application: configuration complete")
             return 0
 
-        print("Application: configuration complete")
         self._L = Logger.get_instance(level=LOG_LEVELS[choice])
+        print("Application: configuration complete")
         return 0
 
     def build_pipeline(self) -> None:
@@ -159,7 +159,6 @@ class Application:
             )
             self._threads.append(thread)
             thread.start()
-            self._L.debug(f"Application: started thread for {type(collector).__name__}")
 
         self._L.info(f"Application: {len(self._threads)} collector thread(s) running")
 
@@ -186,5 +185,5 @@ class Application:
         self._L.info("Application: pipeline stopped")
 
     def _shutdown_signal(self, signum, frame) -> None:
-        self._L.info(f"Application: shutdown signal received: {signum}")
+        print(f"Application: shutdown signal received: {signum}")
         self._stop_event.set()
