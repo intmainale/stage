@@ -4,10 +4,13 @@ Top-level orchestrator. No longer implements an inbound port — main.py
 depends on this class directly since there is only one driver.
 """
 
+import sys
 import threading
+import signal
 
 from src.application.pipeline import Pipeline
 from src.application.pipeline_builder import PipelineBuilder
+from src.application.collector_thread import CollectorThread
 from src.factories.concrete_factories import (
     ConcreteLogParserFactory,
     ConcretePublisherFactory,
@@ -15,8 +18,7 @@ from src.factories.concrete_factories import (
     ConcreteLogEnricherFactory
 )
 
-from src.application.collector_thread import CollectorThread
-from src.domain.exceptions.domain_exceptions import HoneypotError, PipelineError, PublishError
+from src.domain.exceptions.domain_exceptions import HoneypotError, PipelineError, ParseError
 from src.infrastructure.logger import Logger
 
 
@@ -38,6 +40,39 @@ class Application:
         self._pipeline: Pipeline = None
         self._threads:  list[CollectorThread]  = []
         self._stop_event: threading.Event      = threading.Event()
+
+    
+    def run(self) -> None:
+        signal.signal(signal.SIGINT, self._shutdown_signal)
+        signal.signal(signal.SIGTERM, self._shutdown_signal)
+
+        try:
+            self.build_pipeline()
+            self.start_pipeline()
+
+            self._stop_event.wait()  # Wait until stop event is set
+        
+        except ParseError as exc:
+            self._L.error(f"Application: parse error — {exc}")
+            self.stop_pipeline()
+            sys.exit(1)
+        
+        except HoneypotError as exc:
+            self._L.exception(f"Application: Fatal error")
+            self.stop_pipeline()
+            sys.exit(1)
+            
+        except Exception as exc:
+            self._L.exception(f"Application: Unexpected error")
+            self.stop_pipeline()
+            sys.exit(1)
+        
+        finally:
+            self._L.info("Application: exiting")
+    
+    def _shutdown_signal(self, signum, frame) -> None:
+        self._L.info(f"Application: shutdown signal received: {signum}")
+        self.stop_pipeline()
 
     def build_pipeline(self) -> None:
         self._L.info("Application: building pipeline ...")

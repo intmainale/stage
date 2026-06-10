@@ -2,20 +2,10 @@
 Composition Root — main.py
 Wires the full object graph and starts the application.
 """
-from __future__ import annotations
-
-import signal
-import sys
 import logging
-import threading
-
 from config.settings import Settings
 
 from src.application.application import Application
-from src.domain.exceptions.domain_exceptions import (
-    HoneypotError,
-    ParseError,
-)
 
 LOG_LEVELS = {
     "1": logging.DEBUG,
@@ -51,38 +41,16 @@ def main() -> None:
 
     logging_level = LOG_LEVELS.get(choice, logging.INFO)
 
-    app = None
-
-    def _shutdown(signum, frame):
-        if app:
-            app.stop_pipeline()
-
-    signal.signal(signal.SIGINT,  _shutdown)
-    signal.signal(signal.SIGTERM, _shutdown)
-
-    try:
-        app = Application(
-            collectors       = collectors,
-            services         = services,
-            enrichment_tools = enrichers,
-            publishers       = publishers,
-            logging_level    = logging_level
-        )
-
-        app.build_pipeline()
-        app.start_pipeline()
-
-    except ParseError as exc:
-        logging.error(f"Parsing error: {exc}")
-        sys.exit(1)
-        
-    except HoneypotError as exc:
-        logging.exception("Fatal error occurred")
-        sys.exit(1)
     
-    except Exception as exc:
-        logging.exception(f"Unexpected error")
-        sys.exit(1)
+    app = Application(
+        collectors       = collectors,
+        services         = services,
+        enrichment_tools = enrichers,
+        publishers       = publishers,
+        logging_level    = logging_level
+    )
+
+    app.run()
 
 if __name__ == "__main__":
     main()

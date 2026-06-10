@@ -24,7 +24,7 @@ class CollectorThread(threading.Thread):
         pipeline:   Pipeline,
         stop_event: Optional[threading.Event] = None,
     ) -> None:
-        super().__init__(daemon=True)
+        super().__init__(daemon=False)
         self._L         = Logger.get_instance()
         self._collector = collector
         self._pipeline  = pipeline
@@ -40,11 +40,12 @@ class CollectorThread(threading.Thread):
         parser_name = self._collector.parser_type
         try:
             parser = self._pipeline.parsers[parser_name]
+            self._L.debug(f"CollectorThread: using parser '{parser_name}' for collector '{collector_name}'")
         except KeyError:
             raise PipelineError(f"CollectorThread: no parser found for type '{parser_name}'")
     
         for raw_line, path in self._collector.collect(self._stop_event):
-
+            
             if self._stop_event.is_set():
                 self._L.debug(f"CollectorThread: stopping {collector_name}")
                 break
