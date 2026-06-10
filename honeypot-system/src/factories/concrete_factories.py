@@ -21,7 +21,7 @@ from src.adapters.parsers.bash_parser_adapter import BashParserAdapter
 from src.adapters.parsers.ftp_parser_adapter import FTPParserAdapter
 from src.adapters.parsers.apache_parser_adapter import ApacheParserAdapter
 from src.adapters.parsers.auditd_parser_adapter import AuditdParserAdapter
-#from src.adapters.parsers.cowrie_parser_adapter import CowrieParserAdapter
+from src.adapters.parsers.cowrie_parser_adapter import CowrieParserAdapter
 #from src.adapters.parsers.custom_service_parser_adapter import CustomServiceParserAdapter
 
 # ── publisher adapters ───────────────────────────────────────────────────────
@@ -33,6 +33,7 @@ from src.adapters.collectors.bash_log_collector_adapter import BashLogCollectorA
 from src.adapters.collectors.auditd_log_collector_adapter import AuditdLogCollectorAdapter
 from src.adapters.collectors.apache_log_collector_adapter import ApacheLogCollectorAdapter
 from src.adapters.collectors.ftp_log_collector_adapter import FtpLogCollectorAdapter
+from src.adapters.collectors.cowrie_log_collector_adapter import CowrieLogCollectorAdapter
 
 # ── enricher adapters ────────────────────────────────────────────────────────
 from src.adapters.enrichers.virustotal_enricher_adapter import VirusTotalEnricherAdapter
@@ -47,8 +48,7 @@ class ConcreteLogParserFactory(LogParserFactory):
         "bash":           BashParserAdapter,
         "ftp":            FTPParserAdapter,
         "apache":         ApacheParserAdapter,
-        #"cowrie":         CowrieParserAdapter,
-        #"custom_service": CustomServiceParserAdapter,
+        "cowrie":         CowrieParserAdapter,
         "auditd":         AuditdParserAdapter,
     }
 
@@ -80,6 +80,7 @@ class ConcreteLogCollectorFactory(LogCollectorFactory):
         "auditd": AuditdLogCollectorAdapter,
         "apache": ApacheLogCollectorAdapter,
         "ftp":    FtpLogCollectorAdapter,
+        "cowrie": CowrieLogCollectorAdapter,
     }
 
     def create_log_collector(self, collector_type: str, path: str) -> LogCollector:

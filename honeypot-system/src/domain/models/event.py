@@ -105,6 +105,44 @@ class EnrichableEvent(Event):
 
 
 @dataclass
+class CowrieEvent(EnrichableEvent):
+    session: str | None = None
+
+    operation: str | None = None
+    action: str | None = None
+
+    success: bool | None = None
+    severity_score: int | None = None
+
+    username: str | None = None
+
+    command: str | None = None
+
+    url: str | None = None
+    filename: str | None = None
+
+    raw: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+
+        data.update({
+            "session": self.session,
+            "operation": self.operation,
+            "action": self.action,
+            "success": self.success,
+            "severity_score": self.severity_score,
+            "username": self.username,
+            "command": self.command,
+            "url": self.url,
+            "filename": self.filename,
+            "raw": self.raw,
+        })
+
+        return data
+    
+    
+@dataclass
 class AuditdExecEvent(Event):
     event_id: int | None = None
     pid: int | None = None

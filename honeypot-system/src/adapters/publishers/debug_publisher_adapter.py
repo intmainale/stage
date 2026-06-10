@@ -66,7 +66,7 @@ class DebugFilePublisherAdapter(Publisher):
             file = getattr(self, "_file", None)
             if file is not None:
                 file.close()
-            self._L.info("DebugFilePublisherAdapter: closed debug log file")
+                self._L.info("DebugFilePublisherAdapter: closed debug log file")
         except OSError as exc:
             raise PublishError(f"DebugFilePublisherAdapter: close failed") from exc
         finally:

@@ -18,6 +18,8 @@ class LogCollector(ABC):
 
     def __init__(self) -> None:
         self._L: Logger = Logger.get_instance()
+        self.path: str
+        self.parser_type: str
 
     @abstractmethod
     def collect(self, stop_event: threading.Event) -> Iterator[tuple[str, str]]:

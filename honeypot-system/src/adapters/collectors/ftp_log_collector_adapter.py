@@ -18,6 +18,7 @@ class FtpLogCollectorAdapter(LogCollector):
     def __init__(self, path: str, parser_type: str) -> None:
         super().__init__()
         self.path = Path(path) if path else Path(self.DEFAULT_PATH)
+        self.parser_type = parser_type
 
     def collect(self, stop_event: threading.Event) -> Iterator[tuple[str, str]]:
         self._L.info("FtpLogCollectorAdapter: reading from %s", self.path)

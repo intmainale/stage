@@ -21,9 +21,6 @@ collectors:
   auditd:
     path:
       - "/var/log/audit/audit.log"
-  journald:
-    unit:  ""          # empty = all units; set e.g. "sshd.service"
-    lines: "500"
   apache:
     path:
       - "/var/log/apache2/access.log"
@@ -34,7 +31,7 @@ collectors:
       - "/home/alessandro/test-honeypot/proftpd/logs/extended.log"
   cowrie:
     path: 
-      - "/var/log/cowrie"
+      - "/home/alessandro/stage/cowrie/var/log/cowrie/cowrie.json"
 
 # ── Threat-intel enrichers ────────────────────────────────────────────────────
 enrichers:
@@ -49,7 +46,7 @@ enrichers:
 
 # ── Pipeline composition ──────────────────────────────────────────────────────
 pipeline:
-  services:    ["bash", "apache", "auditd", "ftp"]
-  collectors:  ["bash", "apache", "auditd", "ftp"]
+  services:    ["bash", "apache", "auditd", "ftp", "cowrie"]
+  collectors:  ["bash", "apache", "auditd", "ftp", "cowrie"]
   publishers:  ["mqtt", "debug"]
   enrichers:   ["virustotal", "abuseipdb", "ip_api"] # shodan free plan can't query host api gateway
