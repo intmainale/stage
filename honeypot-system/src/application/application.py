@@ -4,6 +4,7 @@ Top-level orchestrator. No longer implements an inbound port — main.py
 depends on this class directly since there is only one driver.
 """
 
+import logging
 import sys
 import threading
 import signal
@@ -30,9 +31,8 @@ class Application:
         services:        dict[str, str],
         enrichment_tools: list[str],
         publishers:      list[str],
-        logging_level:   int = 0
     ) -> None:
-        self._L               = Logger.get_instance(level=logging_level)
+        self._stopped = False
         self._services        = services
         self._publishers      = publishers
         self._collectors      = collectors
@@ -42,37 +42,82 @@ class Application:
         self._stop_event: threading.Event      = threading.Event()
 
     
-    def run(self) -> None:
+    def run(self) -> int:
         signal.signal(signal.SIGINT, self._shutdown_signal)
         signal.signal(signal.SIGTERM, self._shutdown_signal)
 
         try:
+            status = self.configure()
+            if status != 0:
+                return status
             self.build_pipeline()
             self.start_pipeline()
 
-            self._stop_event.wait()  # Wait until stop event is set
+            self._stop_event.wait()
+            return 0
         
         except ParseError as exc:
             self._L.error(f"Application: parse error — {exc}")
-            self.stop_pipeline()
-            sys.exit(1)
+            return 1
         
         except HoneypotError as exc:
             self._L.exception(f"Application: Fatal error")
-            self.stop_pipeline()
-            sys.exit(1)
+            return 1
             
         except Exception as exc:
             self._L.exception(f"Application: Unexpected error")
-            self.stop_pipeline()
-            sys.exit(1)
+            return 1
         
         finally:
-            self._L.info("Application: exiting")
-    
-    def _shutdown_signal(self, signum, frame) -> None:
-        self._L.info(f"Application: shutdown signal received: {signum}")
-        self.stop_pipeline()
+            self.stop_pipeline()
+            print("Application: exiting")
+
+
+    def configure(self) -> int:
+        print("Application: configuring ...")
+        LOG_LEVELS = {
+            "1": logging.DEBUG,
+            "2": logging.INFO,
+            "3": logging.WARNING,
+            "4": logging.ERROR,
+            "5": logging.CRITICAL,
+        }
+
+        print("""
+        Select logging level:
+        1 - DEBUG
+        2 - INFO
+        3 - WARNING
+        4 - ERROR
+        5 - CRITICAL
+        """)
+
+        try:
+            choice = input("Enter choice (1-5) [default: 2]: ").strip()
+
+            if not choice:
+                print(f"Empty choice - default INFO")
+                print("Application: configuration complete")
+                self._L = Logger.get_instance(level=logging.INFO)
+                return 0
+
+        except KeyboardInterrupt:
+            print("Startup interrupted (Ctrl+C) - shutting down")
+            return -1
+
+        except EOFError:
+            print("Input closed (EOF) - shutting down")
+            return -1
+
+        if choice not in LOG_LEVELS:
+            print(f"Invalid choice '{choice}' - default INFO")
+            print("Application: configuration complete")
+            self._L = Logger.get_instance(level=logging.INFO)
+            return 0
+
+        print("Application: configuration complete")
+        self._L = Logger.get_instance(level=LOG_LEVELS[choice])
+        return 0
 
     def build_pipeline(self) -> None:
         self._L.info("Application: building pipeline ...")
@@ -120,8 +165,12 @@ class Application:
 
 
     def stop_pipeline(self) -> None:
+        if self._stopped:
+            return
+
         self._L.info("Application: stopping pipeline ...")
         self._stop_event.set()
+        self._stopped = True
 
         for thread in self._threads:
             thread.join(timeout=10)
@@ -135,3 +184,7 @@ class Application:
                 
         self._threads.clear()
         self._L.info("Application: pipeline stopped")
+
+    def _shutdown_signal(self, signum, frame) -> None:
+        self._L.info(f"Application: shutdown signal received: {signum}")
+        self._stop_event.set()
